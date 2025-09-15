@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import DisclaimerModal from './components/DisclaimerModal';
 import './App.css';
 
-// Inline WalletConnect Component
+// Wallet Connect Component
 const WalletConnect: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -36,56 +36,75 @@ const WalletConnect: React.FC = () => {
   );
 };
 
-// Inline RunTracker Component  
+// GPS Run Tracker Component
 const RunTracker: React.FC = () => {
   const [tracking, setTracking] = useState(false);
   const [distance, setDistance] = useState(0);
   const [lastPos, setLastPos] = useState<{lat: number, lon: number} | null>(null);
-  const [watchId, setWatchId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [watchId, setWatchId] = useState<number | null>(null);
 
-  const startTracking = () => {
-    if (!navigator.geolocation) {
-      setError('GPS not available');
-      return;
-    }
-
-    setTracking(true);
-    setDistance(0);
+  const startTracking = async () => {
     setError('');
     
-    const id = navigator.geolocation.watchPosition(
+    // Request permission first
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+      if (permission.state === 'denied') {
+        setError('Location access denied. Enable in settings.');
+        return;
+      }
+    } catch (e) {
+      console.log('Permission API not supported');
+    }
+
+    // Get initial position to trigger permission prompt
+    navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
+        setTracking(true);
+        setDistance(0);
+        setLastPos({ 
+          lat: position.coords.latitude, 
+          lon: position.coords.longitude 
+        });
         
-        if (lastPos) {
-          const R = 3959; // Earth radius in miles
-          const dLat = (latitude - lastPos.lat) * Math.PI / 180;
-          const dLon = (longitude - lastPos.lon) * Math.PI / 180;
-          const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lastPos.lat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-          const dist = R * c;
-          
-          setDistance(prev => prev + dist);
-        }
-        
-        setLastPos({ lat: latitude, lon: longitude });
+        // Start watching position
+        const id = navigator.geolocation.watchPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            
+            if (lastPos) {
+              // Calculate distance using Haversine formula
+              const R = 3959; // Earth radius in miles
+              const dLat = (latitude - lastPos.lat) * Math.PI / 180;
+              const dLon = (longitude - lastPos.lon) * Math.PI / 180;
+              const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lastPos.lat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              const dist = R * c;
+              
+              if (dist > 0.001) { // Only update if moved more than ~5 feet
+                setDistance(prev => prev + dist);
+                setLastPos({ lat: latitude, lon: longitude });
+              }
+            }
+          },
+          (err) => setError(`GPS Error: ${err.message}`),
+          { 
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+        setWatchId(id);
       },
       (err) => {
-        setError(`GPS Error: ${err.message}`);
-        setTracking(false);
+        setError(`Can't access GPS: ${err.message}. Check settings.`);
       },
-      { 
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
-      }
+      { enableHighAccuracy: true }
     );
-    
-    setWatchId(id);
   };
 
   const stopTracking = () => {
@@ -93,11 +112,8 @@ const RunTracker: React.FC = () => {
       navigator.geolocation.clearWatch(watchId);
     }
     setTracking(false);
-    
     const tokens = distance >= 1 ? Math.floor(distance) : distance >= 0.5 ? 0.5 : 0;
-    alert(`Run complete!\nDistance: ${distance.toFixed(2)} mi\nTokens earned: ${tokens} FYTS`);
-    
-    // Reset for next run
+    alert(`Run complete!\nDistance: ${distance.toFixed(2)} mi\nTokens earned: ${tokens} FYTS (pending approval)`);
     setLastPos(null);
     setWatchId(null);
   };
@@ -108,19 +124,19 @@ const RunTracker: React.FC = () => {
       {!tracking ? (
         <button 
           onClick={startTracking}
-          style={{backgroundColor: '#4CAF50', color: 'white', fontSize: '18px'}}
+          style={{backgroundColor: '#4CAF50', color: 'white', fontSize: '18px', padding: '10px 20px'}}
         >
           Start Run
         </button>
       ) : (
         <div>
           <h3>🔴 Recording...</h3>
-          <p style={{fontSize: '24px'}}>
-            {distance.toFixed(2)} miles
+          <p style={{fontSize: '24px', fontWeight: 'bold'}}>
+            {distance.toFixed(3)} miles
           </p>
           <button 
             onClick={stopTracking}
-            style={{backgroundColor: '#f44336', color: 'white', fontSize: '18px'}}
+            style={{backgroundColor: '#f44336', color: 'white', fontSize: '18px', padding: '10px 20px'}}
           >
             Stop Run
           </button>
