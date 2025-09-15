@@ -3,7 +3,7 @@ import './App.css';
 
 // Calculate distance in meters
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000; // meters
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -15,21 +15,22 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 const App: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [tracking, setTracking] = useState(false);
-  const [distance, setDistance] = useState(0); // miles for display
+  const [distance, setDistance] = useState(0); // miles for UI
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [updateCount, setUpdateCount] = useState(0);
-  const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
 
-  // Use refs to avoid stale closure issues
+  // Refs to avoid stale closures
   const lastPosRef = useRef<GeolocationCoordinates | null>(null);
+  const lastTimestampRef = useRef<number | null>(null);
   const distanceRef = useRef<number>(0); // meters
+  const lastUiUpdateRef = useRef<number>(0);
   const watchId = useRef<number | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
-  const lastUiUpdateRef = useRef<number>(0);
 
-  const MIN_METERS = 5; // minimum movement to count
-  const MAX_ALLOWED_ACCURACY = 50; // ignore positions with >50m accuracy
+  const MIN_METERS = 5; // ignore movement < 5m
+  const MAX_ACCURACY = 50; // ignore fixes worse than 50m accuracy
+  const MAX_SPEED_M_S = 6.7056; // 15 mph in m/s
 
   // Timer for elapsed time
   useEffect(() => {
@@ -62,15 +63,15 @@ const App: React.FC = () => {
       return;
     }
 
-    // Reset everything
+    // Reset
     distanceRef.current = 0;
     setDistance(0);
     lastPosRef.current = null;
+    lastTimestampRef.current = null;
     setTracking(true);
     setStartTime(new Date());
-    setUpdateCount(0);
     setElapsedTime(0);
-    lastUiUpdateRef.current = 0;
+    setUpdateCount(0);
 
     if (!('geolocation' in navigator)) {
       alert('Geolocation not supported');
@@ -78,52 +79,59 @@ const App: React.FC = () => {
     }
 
     watchId.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const coords = position.coords;
-        
-        // Check accuracy - ignore poor GPS fixes
-        if (typeof coords.accuracy === 'number' && coords.accuracy > MAX_ALLOWED_ACCURACY) {
-          console.log('Ignoring low-accuracy fix:', coords.accuracy);
+      (pos) => {
+        const coords = pos.coords;
+        const ts = pos.timestamp ?? Date.now();
+
+        // 1) Accuracy guard
+        if (typeof coords.accuracy === 'number' && coords.accuracy > MAX_ACCURACY) {
+          console.debug('Ignored low-accuracy fix', coords.accuracy);
           return;
         }
 
-        // Calculate distance from last position
-        const prev = lastPosRef.current;
-        if (prev) {
+        // 2) Timestamp/order guard
+        if (lastTimestampRef.current && ts <= lastTimestampRef.current) {
+          console.debug('Ignored out-of-order timestamp', {last: lastTimestampRef.current, now: ts});
+          return;
+        }
+
+        // 3) Compute meters delta if we have a previous point
+        if (lastPosRef.current && lastTimestampRef.current) {
           const meters = haversineMeters(
-            prev.latitude, 
-            prev.longitude, 
-            coords.latitude, 
-            coords.longitude
+            lastPosRef.current.latitude, lastPosRef.current.longitude,
+            coords.latitude, coords.longitude
           );
-          
-          if (meters >= MIN_METERS) {
+
+          // 4) Time delta seconds
+          const dt = (ts - lastTimestampRef.current) / 1000;
+          const speed = dt > 0 ? (meters / dt) : 0;
+
+          // 5) Speed sanity check
+          if (speed > MAX_SPEED_M_S) {
+            console.debug('Ignored unrealistic speed', speed * 2.237); // show in mph
+          } else if (meters >= MIN_METERS) {
             distanceRef.current += meters;
-            console.log(`Movement: ${meters.toFixed(1)}m, Total: ${distanceRef.current.toFixed(1)}m`);
+            console.debug(`Added ${meters.toFixed(1)}m, Total: ${distanceRef.current.toFixed(1)}m`);
           }
         }
 
-        // Always update last position ref
+        // 6) Store current as last
         lastPosRef.current = coords;
-        setCurrentPosition(coords);
-        setUpdateCount(u => u + 1);
+        lastTimestampRef.current = ts;
 
-        // Throttle UI updates to once per second
+        // 7) Update UI throttled
+        setUpdateCount(u => u + 1);
         const now = Date.now();
         if (now - lastUiUpdateRef.current > 1000) {
           lastUiUpdateRef.current = now;
-          setDistance(distanceRef.current / 1609.344); // convert to miles
+          setDistance(distanceRef.current / 1609.344);
         }
       },
       (err) => {
         console.error('GPS error', err);
         alert(`GPS Error: ${err.message}`);
       },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 10000, 
-        maximumAge: 0 
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -132,22 +140,16 @@ const App: React.FC = () => {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
     }
-    
     setTracking(false);
     
     // Final UI update
-    const finalMiles = distanceRef.current / 1609.344;
+    const finalMeters = distanceRef.current;
+    const finalMiles = finalMeters / 1609.344;
     setDistance(finalMiles);
     
     const tokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
     
-    alert(
-      `Run complete!\n` +
-      `Distance: ${finalMiles.toFixed(3)} miles\n` +
-      `Time: ${formatTime(elapsedTime)}\n` +
-      `Tokens: ${tokens} FYTS\n` +
-      `GPS Updates: ${updateCount}`
-    );
+    alert(`Run complete!\nDistance: ${finalMiles.toFixed(3)} miles\nTime: ${formatTime(elapsedTime)}\nTokens: ${tokens} FYTS`);
   };
 
   const formatTime = (seconds: number) => {
@@ -208,11 +210,6 @@ const App: React.FC = () => {
             <div>Time: {formatTime(elapsedTime)}</div>
             <div>Pace: {calculatePace()}</div>
             <div>GPS Updates: {updateCount}</div>
-            {currentPosition && (
-              <div style={{ fontSize: '12px', marginTop: '10px', color: '#666' }}>
-                Accuracy: ±{currentPosition.accuracy.toFixed(0)}m
-              </div>
-            )}
             <button 
               onClick={stopTracking}
               style={{ 
