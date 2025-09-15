@@ -1,8 +1,8 @@
 import React from 'react';
-import GpsOneShot from "./components/GpsOneShot";
+import GpsDebug from "./components/GpsDebug";
 
 function App() {
-  return <GpsOneShot />;
+  return <GpsDebug />;
 }
 
 export default App;
