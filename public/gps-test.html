@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>GPS Debug</title>
+  </head>
+  <body>
+    <h2>GPS Debug Page</h2>
+    <div id="status">Checking geolocation...</div>
+    <script>
+      const status = document.getElementById("status");
+
+      if ("geolocation" in navigator) {
+        status.innerText = "navigator.geolocation available ✅\nTrying watchPosition...";
+
+        navigator.geolocation.watchPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            status.innerText = 
+              "📍 Lat: " + latitude + "\nLng: " + longitude + "\nAccuracy: " + accuracy + "m";
+          },
+          (err) => {
+            status.innerText = "❌ Error: " + err.message + " (Code: " + err.code + ")";
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        status.innerText = "navigator.geolocation not available ❌";
+      }
+    </script>
+  </body>
+</html>
