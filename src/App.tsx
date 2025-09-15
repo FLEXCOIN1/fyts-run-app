@@ -1,30 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
+// Calculate distance in meters
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371000; // Earth radius in meters
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 const App: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [tracking, setTracking] = useState(false);
-  const [distance, setDistance] = useState(0);
+  const [distance, setDistance] = useState(0); // miles for display
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [lastPosition, setLastPosition] = useState<GeolocationCoordinates | null>(null);
-  const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
+  const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
+
+  // Use refs to avoid stale closure issues
+  const lastPosRef = useRef<GeolocationCoordinates | null>(null);
+  const distanceRef = useRef<number>(0); // meters
   const watchId = useRef<number | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
+  const lastUiUpdateRef = useRef<number>(0);
 
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 3959;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
+  const MIN_METERS = 5; // minimum movement to count
+  const MAX_ALLOWED_ACCURACY = 50; // ignore positions with >50m accuracy
 
+  // Timer for elapsed time
   useEffect(() => {
     if (tracking && startTime) {
       intervalId.current = setInterval(() => {
@@ -55,43 +62,67 @@ const App: React.FC = () => {
       return;
     }
 
-    setTracking(true);
+    // Reset everything
+    distanceRef.current = 0;
     setDistance(0);
+    lastPosRef.current = null;
+    setTracking(true);
     setStartTime(new Date());
     setUpdateCount(0);
-    setLastPosition(null);
+    setElapsedTime(0);
+    lastUiUpdateRef.current = 0;
 
-    const MIN_DISTANCE = 0.003; // 5 meters in miles
+    if (!('geolocation' in navigator)) {
+      alert('Geolocation not supported');
+      return;
+    }
 
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         const coords = position.coords;
-        setCurrentPosition(coords);
-        setUpdateCount(prev => prev + 1);
+        
+        // Check accuracy - ignore poor GPS fixes
+        if (typeof coords.accuracy === 'number' && coords.accuracy > MAX_ALLOWED_ACCURACY) {
+          console.log('Ignoring low-accuracy fix:', coords.accuracy);
+          return;
+        }
 
-        if (lastPosition) {
-          const dist = calculateDistance(
-            lastPosition.latitude,
-            lastPosition.longitude,
-            coords.latitude,
+        // Calculate distance from last position
+        const prev = lastPosRef.current;
+        if (prev) {
+          const meters = haversineMeters(
+            prev.latitude, 
+            prev.longitude, 
+            coords.latitude, 
             coords.longitude
           );
           
-          if (dist >= MIN_DISTANCE) {
-            setDistance(prev => prev + dist);
-            setLastPosition(coords);
+          if (meters >= MIN_METERS) {
+            distanceRef.current += meters;
+            console.log(`Movement: ${meters.toFixed(1)}m, Total: ${distanceRef.current.toFixed(1)}m`);
           }
-        } else {
-          setLastPosition(coords);
+        }
+
+        // Always update last position ref
+        lastPosRef.current = coords;
+        setCurrentPosition(coords);
+        setUpdateCount(u => u + 1);
+
+        // Throttle UI updates to once per second
+        const now = Date.now();
+        if (now - lastUiUpdateRef.current > 1000) {
+          lastUiUpdateRef.current = now;
+          setDistance(distanceRef.current / 1609.344); // convert to miles
         }
       },
-      (error) => {
-        alert(`GPS Error: ${error.message}`);
+      (err) => {
+        console.error('GPS error', err);
+        alert(`GPS Error: ${err.message}`);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
+      { 
+        enableHighAccuracy: true, 
+        timeout: 10000, 
+        maximumAge: 0 
       }
     );
   };
@@ -103,8 +134,20 @@ const App: React.FC = () => {
     }
     
     setTracking(false);
-    const tokens = distance >= 1 ? Math.floor(distance) : distance >= 0.5 ? 0.5 : 0;
-    alert(`Run complete!\nDistance: ${distance.toFixed(3)} miles\nTime: ${formatTime(elapsedTime)}\nTokens: ${tokens} FYTS`);
+    
+    // Final UI update
+    const finalMiles = distanceRef.current / 1609.344;
+    setDistance(finalMiles);
+    
+    const tokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
+    
+    alert(
+      `Run complete!\n` +
+      `Distance: ${finalMiles.toFixed(3)} miles\n` +
+      `Time: ${formatTime(elapsedTime)}\n` +
+      `Tokens: ${tokens} FYTS\n` +
+      `GPS Updates: ${updateCount}`
+    );
   };
 
   const formatTime = (seconds: number) => {
@@ -130,7 +173,9 @@ const App: React.FC = () => {
       
       <div style={{ marginBottom: '20px', padding: '20px', border: '1px solid #ccc', borderRadius: '10px' }}>
         {!wallet ? (
-          <button onClick={connectWallet}>Enter Wallet Address</button>
+          <button onClick={connectWallet} style={{ padding: '10px 20px' }}>
+            Enter Wallet Address
+          </button>
         ) : (
           <p>Wallet: {wallet.substring(0, 6)}...{wallet.substring(38)}</p>
         )}
@@ -144,31 +189,41 @@ const App: React.FC = () => {
             onClick={startTracking} 
             disabled={!wallet}
             style={{ 
-              padding: '10px 20px',
+              padding: '15px 30px',
+              fontSize: '18px',
               backgroundColor: wallet ? '#4CAF50' : '#ccc',
-              color: 'white'
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: wallet ? 'pointer' : 'not-allowed'
             }}
           >
             Start Run
           </button>
         ) : (
           <div>
-            <p>Distance: {distance.toFixed(3)} miles</p>
-            <p>Time: {formatTime(elapsedTime)}</p>
-            <p>Pace: {calculatePace()}</p>
-            <p>GPS Updates: {updateCount}</p>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>
+              {distance.toFixed(3)} miles
+            </div>
+            <div>Time: {formatTime(elapsedTime)}</div>
+            <div>Pace: {calculatePace()}</div>
+            <div>GPS Updates: {updateCount}</div>
             {currentPosition && (
-              <p style={{ fontSize: '12px' }}>
-                Location: {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
-              </p>
+              <div style={{ fontSize: '12px', marginTop: '10px', color: '#666' }}>
+                Accuracy: ±{currentPosition.accuracy.toFixed(0)}m
+              </div>
             )}
             <button 
               onClick={stopTracking}
               style={{ 
-                padding: '10px 20px',
+                padding: '15px 30px',
+                fontSize: '18px',
                 backgroundColor: '#f44336',
                 color: 'white',
-                marginTop: '10px'
+                border: 'none',
+                borderRadius: '5px',
+                marginTop: '20px',
+                cursor: 'pointer'
               }}
             >
               Stop Run
