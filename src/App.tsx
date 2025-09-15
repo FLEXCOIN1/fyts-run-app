@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const [updateCount, setUpdateCount] = useState(0);
   const [distanceMiles, setDistanceMiles] = useState(0);
 
-  const startTime = useRef<Date | null>(null);
+  const startTimeRef = useRef<number | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
 
@@ -18,10 +18,15 @@ const App: React.FC = () => {
   const lastTimestampRef = useRef<number | null>(null);
   const distanceRef = useRef<number>(0); // meters
   const lastUiUpdateRef = useRef<number>(0);
+  const speedBufferRef = useRef<number[]>([]); // Rolling average for pace
+  const lastValidPaceRef = useRef<string>('--:-- /mi');
 
-  const MIN_METERS = 5; // ignore <5m jitter
-  const MAX_ACCURACY = 50; // ignore fixes worse than 50m accuracy
+  // Stricter thresholds
+  const MIN_METERS = 10; // Raised from 5 to reduce jitter
+  const MAX_ACCURACY = 20; // Tightened from 50 for better precision
   const MAX_SPEED_M_S = 6.7; // ~15 mph
+  const MIN_PACE_MIN_PER_MI = 3; // Fastest reasonable pace
+  const MAX_PACE_MIN_PER_MI = 30; // Slowest reasonable pace
 
   const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371000; // meters
@@ -35,11 +40,26 @@ const App: React.FC = () => {
     return R * c;
   };
 
-  // Elapsed time ticker
+  // Add speed to rolling buffer
+  const addSpeed = (speed: number) => {
+    speedBufferRef.current.push(speed);
+    if (speedBufferRef.current.length > 10) {
+      speedBufferRef.current.shift();
+    }
+  };
+
+  // Get average speed from buffer
+  const getAvgSpeed = () => {
+    if (speedBufferRef.current.length === 0) return 0;
+    return speedBufferRef.current.reduce((a, b) => a + b, 0) / speedBufferRef.current.length;
+  };
+
+  // Elapsed time ticker using timestamp refs
   useEffect(() => {
-    if (tracking && startTime.current) {
+    if (tracking && startTimeRef.current) {
       intervalId.current = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - startTime.current!.getTime()) / 1000));
+        const currentTime = lastTimestampRef.current || Date.now();
+        setElapsedTime(Math.floor((currentTime - startTimeRef.current!) / 1000));
       }, 1000);
     } else {
       if (intervalId.current) clearInterval(intervalId.current);
@@ -62,7 +82,7 @@ const App: React.FC = () => {
       return;
     }
 
-    // reset
+    // Reset all values
     setTracking(true);
     setElapsedTime(0);
     setUpdateCount(0);
@@ -70,7 +90,9 @@ const App: React.FC = () => {
     distanceRef.current = 0;
     lastPosRef.current = null;
     lastTimestampRef.current = null;
-    startTime.current = new Date();
+    startTimeRef.current = null;
+    speedBufferRef.current = [];
+    lastValidPaceRef.current = '--:-- /mi';
 
     if (!('geolocation' in navigator)) {
       alert('Geolocation not supported');
@@ -80,21 +102,35 @@ const App: React.FC = () => {
     watchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const coords = pos.coords;
-        const ts = pos.timestamp ?? Date.now();
+        const ts = pos.timestamp; // Always use pos.timestamp
 
-        // accuracy check
+        // Set start time from first GPS fix
+        if (!startTimeRef.current) {
+          startTimeRef.current = ts;
+        }
+
+        // Enhanced debug logging
+        console.debug('GPS Update:', {
+          accuracy: coords.accuracy,
+          lat: coords.latitude,
+          lon: coords.longitude,
+          ts: ts,
+          elapsed: (ts - startTimeRef.current) / 1000
+        });
+
+        // Stricter accuracy check
         if (coords.accuracy > MAX_ACCURACY) {
-          console.debug('Ignored low-accuracy fix', coords.accuracy);
+          console.debug(`Ignored: accuracy ${coords.accuracy}m > ${MAX_ACCURACY}m`);
           return;
         }
 
-        // timestamp check
+        // Timestamp check
         if (lastTimestampRef.current && ts <= lastTimestampRef.current) {
-          console.debug('Ignored out-of-order timestamp');
+          console.debug('Ignored: out-of-order timestamp');
           return;
         }
 
-        if (lastPosRef.current) {
+        if (lastPosRef.current && lastTimestampRef.current) {
           const meters = haversineMeters(
             lastPosRef.current.latitude,
             lastPosRef.current.longitude,
@@ -102,14 +138,24 @@ const App: React.FC = () => {
             coords.longitude
           );
 
-          const dt = (ts - lastTimestampRef.current!) / 1000;
+          const dt = (ts - lastTimestampRef.current) / 1000;
           const speed = dt > 0 ? meters / dt : 0;
 
+          console.debug('Movement calc:', {
+            meters: meters.toFixed(1),
+            dt: dt.toFixed(1),
+            speed: (speed * 2.237).toFixed(1) + ' mph',
+            willCount: meters >= MIN_METERS && speed <= MAX_SPEED_M_S
+          });
+
           if (speed > MAX_SPEED_M_S) {
-            console.debug('Ignored unrealistic speed', speed);
+            console.debug(`Ignored: speed ${(speed * 2.237).toFixed(1)} mph > 15 mph`);
           } else if (meters >= MIN_METERS) {
             distanceRef.current += meters;
-            console.debug(`Added ${meters.toFixed(1)}m, Total: ${distanceRef.current.toFixed(1)}m`);
+            addSpeed(speed); // Add to rolling average
+            console.debug(`✓ Added ${meters.toFixed(1)}m, Total: ${distanceRef.current.toFixed(1)}m`);
+          } else {
+            console.debug(`Ignored: distance ${meters.toFixed(1)}m < ${MIN_METERS}m`);
           }
         }
 
@@ -126,6 +172,7 @@ const App: React.FC = () => {
         }
       },
       (err) => {
+        console.error('GPS Error:', err);
         alert(`GPS Error: ${err.message}`);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -145,9 +192,11 @@ const App: React.FC = () => {
     const tokens =
       finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
     alert(
-      `Run complete!\nDistance: ${finalMiles.toFixed(
-        3
-      )} miles\nTime: ${formatTime(elapsedTime)}\nTokens: ${tokens} FYTS`
+      `Run complete!\n` +
+      `Distance: ${finalMiles.toFixed(3)} miles\n` +
+      `Time: ${formatTime(elapsedTime)}\n` +
+      `Pace: ${calculatePace()}\n` +
+      `Tokens: ${tokens} FYTS`
     );
   };
 
@@ -155,19 +204,29 @@ const App: React.FC = () => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs
-      .toString()
-      .padStart(2, '0')}`;
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const calculatePace = () => {
-    if (distanceMiles > 0 && elapsedTime > 0) {
-      const pace = elapsedTime / 60 / distanceMiles;
-      const paceMinutes = Math.floor(pace);
-      const paceSeconds = Math.floor((pace - paceMinutes) * 60);
-      return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')} /mi`;
+    // Use average speed from buffer for smoother pace
+    const avgSpeed = getAvgSpeed(); // m/s
+    
+    if (avgSpeed > 0) {
+      const milesPerSecond = avgSpeed / 1609.344;
+      const minutesPerMile = 1 / (milesPerSecond * 60);
+      
+      // Sanity check on pace
+      if (minutesPerMile >= MIN_PACE_MIN_PER_MI && minutesPerMile <= MAX_PACE_MIN_PER_MI) {
+        const paceMinutes = Math.floor(minutesPerMile);
+        const paceSeconds = Math.floor((minutesPerMile - paceMinutes) * 60);
+        const paceStr = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')} /mi`;
+        lastValidPaceRef.current = paceStr;
+        return paceStr;
+      }
     }
-    return '--:-- /mi';
+    
+    // Return last valid pace if current calculation is invalid
+    return lastValidPaceRef.current;
   };
 
   return (
@@ -218,6 +277,7 @@ const App: React.FC = () => {
                 </p>
                 <p style={{ fontSize: '12px', color: '#666' }}>
                   Accuracy: ±{currentPosition.accuracy.toFixed(0)}m
+                  {currentPosition.accuracy > MAX_ACCURACY && ' (Poor signal)'}
                 </p>
               </>
             )}
