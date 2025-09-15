@@ -10,6 +10,7 @@ const App: React.FC = () => {
   const [lastPosition, setLastPosition] = useState<GeolocationCoordinates | null>(null);
   const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
+  const [movementCount, setMovementCount] = useState(0);
   const watchId = useRef<number | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
 
@@ -44,10 +45,31 @@ const App: React.FC = () => {
     };
   }, [tracking, startTime]);
 
-  const connectWallet = () => {
-    const address = prompt('Enter your wallet address (0x...):');
-    if (address && address.startsWith('0x')) {
-      setWallet(address);
+  const connectWallet = async () => {
+    // Try MetaMask first
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const accounts = await window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
+        });
+        setWallet(accounts[0]);
+      } catch {
+        // If MetaMask fails, fallback to manual entry
+        const address = prompt('Enter your wallet address (0x...):');
+        if (address && address.startsWith('0x') && address.length === 42) {
+          setWallet(address);
+        } else if (address) {
+          alert('Invalid wallet address. Must start with 0x and be 42 characters.');
+        }
+      }
+    } else {
+      // No wallet detected - manual entry
+      const address = prompt('No wallet detected. Enter your wallet address:');
+      if (address && address.startsWith('0x') && address.length === 42) {
+        setWallet(address);
+      } else if (address) {
+        alert('Invalid wallet address. Must start with 0x and be 42 characters.');
+      }
     }
   };
 
@@ -57,13 +79,21 @@ const App: React.FC = () => {
       return;
     }
 
+    if (!navigator.geolocation) {
+      alert('GPS not supported on this device');
+      return;
+    }
+
     setTracking(true);
     setDistance(0);
     setStartTime(new Date());
     setUpdateCount(0);
+    setMovementCount(0);
     setLastPosition(null);
 
-    // Get high accuracy GPS updates
+    // Minimum distance in miles to count as movement (5 meters = ~0.003 miles)
+    const MIN_DISTANCE = 0.003;
+
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         const coords = position.coords;
@@ -79,24 +109,39 @@ const App: React.FC = () => {
             coords.longitude
           );
           
-          // Only add distance if movement is significant (more than 10 feet)
-          if (dist > 0.002) {
+          // Only update distance if moved more than 5 meters
+          if (dist >= MIN_DISTANCE) {
             setDistance(prev => prev + dist);
-            console.log(`Distance update: +${dist.toFixed(4)} miles`);
+            setLastPosition(coords);
+            setMovementCount(prev => prev + 1);
+            console.log(`Movement #${movementCount + 1}: ${(dist * 1609).toFixed(1)} meters`);
           }
+        } else {
+          // First position
+          setLastPosition(coords);
         }
-        
-        setLastPosition(coords);
       },
       (error) => {
         console.error('GPS Error:', error);
-        alert(`GPS Error: ${error.message}`);
+        let errorMessage = 'Unknown GPS error';
+        switch(error.code) {
+          case 1:
+            errorMessage = 'GPS permission denied. Please enable location services.';
+            break;
+          case 2:
+            errorMessage = 'GPS position unavailable. Try going outside.';
+            break;
+          case 3:
+            errorMessage = 'GPS timeout. Trying again...';
+            return; // Don't stop tracking on timeout
+        }
+        alert(errorMessage);
+        setTracking(false);
       },
       {
         enableHighAccuracy: true,
         timeout: 5000,
-        maximumAge: 0,
-        distanceFilter: 5 // Update every 5 meters of movement
+        maximumAge: 0
       }
     );
   };
@@ -110,7 +155,33 @@ const App: React.FC = () => {
     setTracking(false);
     const tokens = distance >= 1 ? Math.floor(distance) : distance >= 0.5 ? 0.5 : 0;
     
-    alert(`Run complete!\nDistance: ${distance.toFixed(3)} miles\nTime: ${formatTime(elapsedTime)}\nTokens earned: ${tokens} FYTS`);
+    // Save run data
+    const runData = {
+      wallet,
+      distance: distance.toFixed(3),
+      time: formatTime(elapsedTime),
+      pace: calculatePace(),
+      tokens,
+      date: new Date().toISOString(),
+      gpsUpdates: updateCount,
+      movements: movementCount
+    };
+    
+    console.log('Run completed:', runData);
+    
+    alert(
+      `Run Complete!\n\n` +
+      `Distance: ${distance.toFixed(3)} miles\n` +
+      `Time: ${formatTime(elapsedTime)}\n` +
+      `Pace: ${calculatePace()}\n` +
+      `Tokens earned: ${tokens} FYTS\n\n` +
+      `GPS Updates: ${updateCount}\n` +
+      `Valid Movements: ${movementCount}`
+    );
+    
+    // Reset for next run
+    setElapsedTime(0);
+    setStartTime(null);
   };
 
   const formatTime = (seconds: number) => {
@@ -132,23 +203,55 @@ const App: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h1>FYTS Run Tracker</h1>
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>FYTS Run Tracker</h1>
       
       {/* Wallet Section */}
-      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #ccc', borderRadius: '10px' }}>
+      <div style={{ 
+        marginBottom: '30px', 
+        padding: '20px', 
+        backgroundColor: '#f8f9fa',
+        borderRadius: '10px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ margin: '0 0 15px 0', color: '#555' }}>Wallet Connection</h3>
         {!wallet ? (
-          <button onClick={connectWallet} style={{ padding: '10px 20px', fontSize: '16px' }}>
-            Enter Wallet Address
+          <button 
+            onClick={connectWallet} 
+            style={{ 
+              padding: '12px 24px', 
+              fontSize: '16px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            Connect / Enter Wallet
           </button>
         ) : (
-          <p>Wallet: {wallet.substring(0, 6)}...{wallet.substring(38)}</p>
+          <div>
+            <p style={{ color: '#28a745', fontWeight: 'bold' }}>
+              ✓ Connected
+            </p>
+            <p style={{ fontFamily: 'monospace', fontSize: '14px' }}>
+              {wallet.substring(0, 6)}...{wallet.substring(38)}
+            </p>
+          </div>
         )}
       </div>
 
       {/* GPS Tracking Section */}
-      <div style={{ padding: '20px', border: '2px solid #4CAF50', borderRadius: '10px' }}>
-        <h2>GPS Run Tracking</h2>
+      <div style={{ 
+        padding: '20px', 
+        backgroundColor: tracking ? '#e8f5e9' : '#f8f9fa',
+        borderRadius: '10px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', color: '#555' }}>
+          {tracking ? '🔴 Recording Run' : '🏃 GPS Tracking'}
+        </h3>
         
         {!tracking ? (
           <button 
@@ -161,59 +264,41 @@ const App: React.FC = () => {
               color: 'white',
               border: 'none',
               borderRadius: '5px',
-              cursor: wallet ? 'pointer' : 'not-allowed'
+              cursor: wallet ? 'pointer' : 'not-allowed',
+              width: '100%'
             }}
           >
             Start Run
           </button>
         ) : (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-              <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-                <div style={{ fontSize: '12px', color: '#666' }}>DISTANCE</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{distance.toFixed(3)} mi</div>
+            {/* Stats Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '15px', 
+              marginBottom: '20px' 
+            }}>
+              <div style={{ 
+                padding: '15px', 
+                backgroundColor: 'white', 
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                  DISTANCE
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#2196F3' }}>
+                  {distance.toFixed(3)}
+                </div>
+                <div style={{ fontSize: '14px', color: '#666' }}>miles</div>
               </div>
-              <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-                <div style={{ fontSize: '12px', color: '#666' }}>TIME</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{formatTime(elapsedTime)}</div>
-              </div>
-              <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-                <div style={{ fontSize: '12px', color: '#666' }}>PACE</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{calculatePace()}</div>
-              </div>
-              <div style={{ padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
-                <div style={{ fontSize: '12px', color: '#666' }}>GPS UPDATES</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{updateCount}</div>
-              </div>
-            </div>
-            
-            {currentPosition && (
-              <div style={{ fontSize: '10px', color: '#666', marginBottom: '10px' }}>
-                GPS: {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)} 
-                (±{currentPosition.accuracy.toFixed(0)}m)
-              </div>
-            )}
-            
-            <button 
-              onClick={stopTracking}
-              style={{ 
-                padding: '15px 30px', 
-                fontSize: '18px',
-                backgroundColor: '#f44336',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              Stop Run
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default App;
+              
+              <div style={{ 
+                padding: '15px', 
+                backgroundColor: 'white', 
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                  TIME
