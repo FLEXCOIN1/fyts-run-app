@@ -8,25 +8,21 @@ const App: React.FC = () => {
   const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
   const [distanceMiles, setDistanceMiles] = useState(0);
+  const [debugInfo, setDebugInfo] = useState<string>('Waiting for GPS...');
+  const [movementCount, setMovementCount] = useState(0);
 
-  const startTimeRef = useRef<number | null>(null);
+  const startTime = useRef<Date | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
 
   // Refs for stable geolocation updates
   const lastPosRef = useRef<GeolocationCoordinates | null>(null);
-  const lastTimestampRef = useRef<number | null>(null);
   const distanceRef = useRef<number>(0); // meters
-  const lastUiUpdateRef = useRef<number>(0);
-  const speedBufferRef = useRef<number[]>([]); // Rolling average for pace
-  const lastValidPaceRef = useRef<string>('--:-- /mi');
 
-  // Stricter thresholds
-  const MIN_METERS = 10; // Raised from 5 to reduce jitter
-  const MAX_ACCURACY = 20; // Tightened from 50 for better precision
-  const MAX_SPEED_M_S = 6.7; // ~15 mph
-  const MIN_PACE_MIN_PER_MI = 3; // Fastest reasonable pace
-  const MAX_PACE_MIN_PER_MI = 30; // Slowest reasonable pace
+  // Mobile-optimized thresholds
+  const MIN_METERS = 3; // 3 meters (~10 feet) - low enough to detect walking
+  const MAX_ACCURACY = 65; // Accept up to 65m accuracy (typical for mobile)
+  const MAX_SPEED_MPH = 15; // Max running speed
 
   const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371000; // meters
@@ -40,26 +36,11 @@ const App: React.FC = () => {
     return R * c;
   };
 
-  // Add speed to rolling buffer
-  const addSpeed = (speed: number) => {
-    speedBufferRef.current.push(speed);
-    if (speedBufferRef.current.length > 10) {
-      speedBufferRef.current.shift();
-    }
-  };
-
-  // Get average speed from buffer
-  const getAvgSpeed = () => {
-    if (speedBufferRef.current.length === 0) return 0;
-    return speedBufferRef.current.reduce((a, b) => a + b, 0) / speedBufferRef.current.length;
-  };
-
-  // Elapsed time ticker using timestamp refs
+  // Timer
   useEffect(() => {
-    if (tracking && startTimeRef.current) {
+    if (tracking && startTime.current) {
       intervalId.current = setInterval(() => {
-        const currentTime = lastTimestampRef.current || Date.now();
-        setElapsedTime(Math.floor((currentTime - startTimeRef.current!) / 1000));
+        setElapsedTime(Math.floor((Date.now() - startTime.current!.getTime()) / 1000));
       }, 1000);
     } else {
       if (intervalId.current) clearInterval(intervalId.current);
@@ -82,55 +63,55 @@ const App: React.FC = () => {
       return;
     }
 
-    // Reset all values
+    // Reset everything
     setTracking(true);
     setElapsedTime(0);
     setUpdateCount(0);
+    setMovementCount(0);
     setDistanceMiles(0);
+    setDebugInfo('Starting GPS...');
     distanceRef.current = 0;
     lastPosRef.current = null;
-    lastTimestampRef.current = null;
-    startTimeRef.current = null;
-    speedBufferRef.current = [];
-    lastValidPaceRef.current = '--:-- /mi';
+    startTime.current = new Date();
 
     if (!('geolocation' in navigator)) {
+      setDebugInfo('GPS not supported!');
       alert('Geolocation not supported');
       return;
     }
 
+    // Get initial position first
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        lastPosRef.current = pos.coords;
+        setCurrentPosition(pos.coords);
+        setDebugInfo(`GPS locked! Accuracy: ${pos.coords.accuracy.toFixed(0)}m`);
+      },
+      (err) => {
+        setDebugInfo(`Initial GPS error: ${err.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+
+    // Then start watching
     watchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const coords = pos.coords;
-        const ts = pos.timestamp; // Always use pos.timestamp
+        setUpdateCount(prev => prev + 1);
+        setCurrentPosition(coords);
 
-        // Set start time from first GPS fix
-        if (!startTimeRef.current) {
-          startTimeRef.current = ts;
-        }
+        // Show accuracy in debug
+        let debug = `Accuracy: ${coords.accuracy.toFixed(0)}m`;
 
-        // Enhanced debug logging
-        console.debug('GPS Update:', {
-          accuracy: coords.accuracy,
-          lat: coords.latitude,
-          lon: coords.longitude,
-          ts: ts,
-          elapsed: (ts - startTimeRef.current) / 1000
-        });
-
-        // Stricter accuracy check
+        // Check if accuracy is acceptable
         if (coords.accuracy > MAX_ACCURACY) {
-          console.debug(`Ignored: accuracy ${coords.accuracy}m > ${MAX_ACCURACY}m`);
+          debug += ` (Poor - need <${MAX_ACCURACY}m)`;
+          setDebugInfo(debug);
           return;
         }
 
-        // Timestamp check
-        if (lastTimestampRef.current && ts <= lastTimestampRef.current) {
-          console.debug('Ignored: out-of-order timestamp');
-          return;
-        }
-
-        if (lastPosRef.current && lastTimestampRef.current) {
+        // Calculate distance if we have a previous position
+        if (lastPosRef.current) {
           const meters = haversineMeters(
             lastPosRef.current.latitude,
             lastPosRef.current.longitude,
@@ -138,44 +119,42 @@ const App: React.FC = () => {
             coords.longitude
           );
 
-          const dt = (ts - lastTimestampRef.current) / 1000;
-          const speed = dt > 0 ? meters / dt : 0;
+          // Calculate speed check
+          const timeDiff = 5; // Assume 5 seconds between updates
+          const speedMph = (meters / timeDiff) * 2.237;
 
-          console.debug('Movement calc:', {
-            meters: meters.toFixed(1),
-            dt: dt.toFixed(1),
-            speed: (speed * 2.237).toFixed(1) + ' mph',
-            willCount: meters >= MIN_METERS && speed <= MAX_SPEED_M_S
-          });
+          debug += ` | Move: ${meters.toFixed(1)}m`;
 
-          if (speed > MAX_SPEED_M_S) {
-            console.debug(`Ignored: speed ${(speed * 2.237).toFixed(1)} mph > 15 mph`);
+          // Check if movement is valid
+          if (speedMph > MAX_SPEED_MPH) {
+            debug += ` (Too fast: ${speedMph.toFixed(1)}mph)`;
           } else if (meters >= MIN_METERS) {
+            // Valid movement!
             distanceRef.current += meters;
-            addSpeed(speed); // Add to rolling average
-            console.debug(`✓ Added ${meters.toFixed(1)}m, Total: ${distanceRef.current.toFixed(1)}m`);
+            setMovementCount(prev => prev + 1);
+            setDistanceMiles(distanceRef.current / 1609.344);
+            debug += ` ✓ Added!`;
+            lastPosRef.current = coords;
           } else {
-            console.debug(`Ignored: distance ${meters.toFixed(1)}m < ${MIN_METERS}m`);
+            debug += ` (Need >${MIN_METERS}m)`;
           }
+        } else {
+          // First position
+          lastPosRef.current = coords;
+          debug += ' | First position set';
         }
 
-        lastPosRef.current = coords;
-        lastTimestampRef.current = ts;
-        setCurrentPosition(coords);
-        setUpdateCount((u) => u + 1);
-
-        // Throttle UI update
-        const now = Date.now();
-        if (now - lastUiUpdateRef.current > 1000) {
-          lastUiUpdateRef.current = now;
-          setDistanceMiles(distanceRef.current / 1609.344);
-        }
+        setDebugInfo(debug);
       },
       (err) => {
-        console.error('GPS Error:', err);
-        alert(`GPS Error: ${err.message}`);
+        setDebugInfo(`GPS Error: ${err.message}`);
+        console.error('GPS error:', err);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { 
+        enableHighAccuracy: true, 
+        timeout: 5000,
+        maximumAge: 0
+      }
     );
   };
 
@@ -187,16 +166,15 @@ const App: React.FC = () => {
     setTracking(false);
 
     const finalMiles = distanceRef.current / 1609.344;
-    setDistanceMiles(finalMiles);
-
-    const tokens =
-      finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
+    const tokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
+    
     alert(
-      `Run complete!\n` +
+      `Run Complete!\n\n` +
       `Distance: ${finalMiles.toFixed(3)} miles\n` +
       `Time: ${formatTime(elapsedTime)}\n` +
-      `Pace: ${calculatePace()}\n` +
-      `Tokens: ${tokens} FYTS`
+      `Valid Movements: ${movementCount}\n` +
+      `GPS Updates: ${updateCount}\n` +
+      `Tokens Earned: ${tokens} FYTS`
     );
   };
 
@@ -208,43 +186,61 @@ const App: React.FC = () => {
   };
 
   const calculatePace = () => {
-    // Use average speed from buffer for smoother pace
-    const avgSpeed = getAvgSpeed(); // m/s
-    
-    if (avgSpeed > 0) {
-      const milesPerSecond = avgSpeed / 1609.344;
-      const minutesPerMile = 1 / (milesPerSecond * 60);
-      
-      // Sanity check on pace
-      if (minutesPerMile >= MIN_PACE_MIN_PER_MI && minutesPerMile <= MAX_PACE_MIN_PER_MI) {
-        const paceMinutes = Math.floor(minutesPerMile);
-        const paceSeconds = Math.floor((minutesPerMile - paceMinutes) * 60);
-        const paceStr = `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')} /mi`;
-        lastValidPaceRef.current = paceStr;
-        return paceStr;
-      }
+    if (distanceMiles > 0 && elapsedTime > 0) {
+      const pace = elapsedTime / 60 / distanceMiles;
+      if (pace > 99) return '--:--';
+      const paceMinutes = Math.floor(pace);
+      const paceSeconds = Math.floor((pace - paceMinutes) * 60);
+      return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
     }
-    
-    // Return last valid pace if current calculation is invalid
-    return lastValidPaceRef.current;
+    return '--:--';
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h1>FYTS Run Tracker</h1>
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1 style={{ textAlign: 'center' }}>FYTS Run Tracker</h1>
 
-      <div style={{ marginBottom: '20px', padding: '20px', border: '1px solid #ccc', borderRadius: '10px' }}>
+      {/* Wallet Section */}
+      <div style={{ 
+        marginBottom: '20px', 
+        padding: '20px', 
+        backgroundColor: '#f5f5f5',
+        borderRadius: '10px' 
+      }}>
         {!wallet ? (
-          <button onClick={connectWallet} style={{ padding: '10px 20px' }}>
+          <button 
+            onClick={connectWallet} 
+            style={{ 
+              padding: '12px 24px',
+              fontSize: '16px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
             Enter Wallet Address
           </button>
         ) : (
-          <p>Wallet: {wallet.substring(0, 6)}...{wallet.substring(38)}</p>
+          <div style={{ textAlign: 'center' }}>
+            <span style={{ color: '#28a745' }}>✓ </span>
+            {wallet.substring(0, 6)}...{wallet.substring(38)}
+          </div>
         )}
       </div>
 
-      <div style={{ padding: '20px', border: '2px solid #4CAF50', borderRadius: '10px' }}>
-        <h2>GPS Tracking</h2>
+      {/* GPS Tracking Section */}
+      <div style={{ 
+        padding: '20px', 
+        backgroundColor: tracking ? '#e8ffe8' : '#f5f5f5',
+        borderRadius: '10px',
+        border: tracking ? '2px solid #4CAF50' : '2px solid #ddd'
+      }}>
+        <h2 style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
+          {tracking ? '🔴 Recording' : '🏃 Ready to Run'}
+        </h2>
 
         {!tracking ? (
           <button
@@ -252,52 +248,87 @@ const App: React.FC = () => {
             disabled={!wallet}
             style={{
               padding: '15px 30px',
-              fontSize: '16px',
+              fontSize: '18px',
               backgroundColor: wallet ? '#4CAF50' : '#ccc',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
-              cursor: wallet ? 'pointer' : 'not-allowed'
+              cursor: wallet ? 'pointer' : 'not-allowed',
+              width: '100%'
             }}
           >
-            Start Run
+            START RUN
           </button>
         ) : (
           <div>
-            <p style={{ fontSize: '20px', fontWeight: 'bold' }}>
-              Distance: {distanceMiles.toFixed(3)} miles
-            </p>
-            <p>Time: {formatTime(elapsedTime)}</p>
-            <p>Pace: {calculatePace()}</p>
-            <p>GPS Updates: {updateCount}</p>
-            {currentPosition && (
-              <>
-                <p style={{ fontSize: '12px' }}>
-                  Location: {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
-                </p>
-                <p style={{ fontSize: '12px', color: '#666' }}>
-                  Accuracy: ±{currentPosition.accuracy.toFixed(0)}m
-                  {currentPosition.accuracy > MAX_ACCURACY && ' (Poor signal)'}
-                </p>
-              </>
-            )}
+            {/* Main Stats */}
+            <div style={{ 
+              backgroundColor: 'white', 
+              padding: '15px', 
+              borderRadius: '8px',
+              marginBottom: '15px'
+            }}>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', textAlign: 'center' }}>
+                {distanceMiles.toFixed(3)} mi
+              </div>
+              <div style={{ textAlign: 'center', color: '#666', marginTop: '5px' }}>
+                {formatTime(elapsedTime)} | Pace: {calculatePace()} /mi
+              </div>
+            </div>
+
+            {/* Debug Info Box */}
+            <div style={{ 
+              backgroundColor: '#f0f8ff', 
+              padding: '10px', 
+              borderRadius: '5px',
+              marginBottom: '15px',
+              fontSize: '12px',
+              fontFamily: 'monospace'
+            }}>
+              <div>📊 Updates: {updateCount} | Movements: {movementCount}</div>
+              <div style={{ marginTop: '5px' }}>🎯 {debugInfo}</div>
+              {currentPosition && (
+                <div style={{ marginTop: '5px', color: '#666' }}>
+                  📍 {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
+                </div>
+              )}
+            </div>
+
+            {/* Stop Button */}
             <button
               onClick={stopTracking}
               style={{
                 padding: '15px 30px',
-                fontSize: '16px',
+                fontSize: '18px',
                 backgroundColor: '#f44336',
                 color: 'white',
                 border: 'none',
                 borderRadius: '5px',
-                marginTop: '20px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                width: '100%'
               }}
             >
-              Stop Run
+              STOP RUN
             </button>
           </div>
         )}
+      </div>
+
+      {/* Instructions */}
+      <div style={{ 
+        marginTop: '20px', 
+        padding: '15px',
+        backgroundColor: '#fff3cd',
+        borderRadius: '5px',
+        fontSize: '14px'
+      }}>
+        <strong>Tips for best GPS:</strong>
+        <ul style={{ margin: '5px 0 0 0', paddingLeft: '20px' }}>
+          <li>Use outdoors with clear sky view</li>
+          <li>Walk at least 10 feet between stops</li>
+          <li>Keep phone screen on</li>
+          <li>Allow location access when prompted</li>
+        </ul>
       </div>
     </div>
   );
