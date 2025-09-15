@@ -1,37 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-const WalletConnect: React.FC = () => {
+const WalletConnectSimple: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
-  const [error, setError] = useState<string>('');
 
   const connectWallet = async () => {
+    // Try MetaMask first
     if (typeof window.ethereum !== 'undefined') {
       try {
         const accounts = await window.ethereum.request({ 
           method: 'eth_requestAccounts' 
         });
         setWallet(accounts[0]);
-        setError('');
-      } catch (error) {
-        setError('Failed to connect. Open in MetaMask browser on mobile.');
+      } catch {
+        // If MetaMask fails, manual entry
+        const address = prompt('Enter your wallet address (0x...)');
+        if (address) setWallet(address);
       }
     } else {
-      setError('No wallet found. Install MetaMask or use MetaMask browser.');
+      // No wallet detected - manual entry
+      const address = prompt('No wallet detected. Enter your address manually:');
+      if (address) setWallet(address);
     }
   };
 
   return (
     <div>
       {!wallet ? (
-        <>
-          <button onClick={connectWallet}>Connect Wallet</button>
-          {error && <p style={{color: 'red'}}>{error}</p>}
-        </>
+        <button onClick={connectWallet}>Connect/Enter Wallet</button>
       ) : (
-        <p>Connected: {wallet.substring(0, 6)}...{wallet.substring(38)}</p>
+        <p>Wallet: {wallet.substring(0, 6)}...{wallet.substring(38)}</p>
       )}
     </div>
   );
 };
 
-export default WalletConnect;
+export default WalletConnectSimple;
