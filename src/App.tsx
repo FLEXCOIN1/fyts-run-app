@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { db } from './firebase';
+import { collection, addDoc } from 'firebase/firestore';
 import './App.css';
 
 const App: React.FC = () => {
@@ -14,18 +16,15 @@ const App: React.FC = () => {
   const startTime = useRef<Date | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
-
-  // Refs for stable geolocation updates
   const lastPosRef = useRef<GeolocationCoordinates | null>(null);
-  const distanceRef = useRef<number>(0); // meters
+  const distanceRef = useRef<number>(0);
 
-  // Mobile-optimized thresholds
-  const MIN_METERS = 3; // 3 meters (~10 feet) - low enough to detect walking
-  const MAX_ACCURACY = 65; // Accept up to 65m accuracy (typical for mobile)
-  const MAX_SPEED_MPH = 15; // Max running speed
+  const MIN_METERS = 3;
+  const MAX_ACCURACY = 65;
+  const MAX_SPEED_MPH = 15;
 
   const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371000; // meters
+    const R = 6371000;
     const toRad = (d: number) => (d * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
@@ -36,7 +35,6 @@ const App: React.FC = () => {
     return R * c;
   };
 
-  // Timer
   useEffect(() => {
     if (tracking && startTime.current) {
       intervalId.current = setInterval(() => {
@@ -63,7 +61,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Reset everything
     setTracking(true);
     setElapsedTime(0);
     setUpdateCount(0);
@@ -80,7 +77,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Get initial position first
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         lastPosRef.current = pos.coords;
@@ -93,24 +89,20 @@ const App: React.FC = () => {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
-    // Then start watching
     watchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const coords = pos.coords;
         setUpdateCount(prev => prev + 1);
         setCurrentPosition(coords);
 
-        // Show accuracy in debug
         let debug = `Accuracy: ${coords.accuracy.toFixed(0)}m`;
 
-        // Check if accuracy is acceptable
         if (coords.accuracy > MAX_ACCURACY) {
           debug += ` (Poor - need <${MAX_ACCURACY}m)`;
           setDebugInfo(debug);
           return;
         }
 
-        // Calculate distance if we have a previous position
         if (lastPosRef.current) {
           const meters = haversineMeters(
             lastPosRef.current.latitude,
@@ -119,17 +111,14 @@ const App: React.FC = () => {
             coords.longitude
           );
 
-          // Calculate speed check
-          const timeDiff = 5; // Assume 5 seconds between updates
+          const timeDiff = 5;
           const speedMph = (meters / timeDiff) * 2.237;
 
           debug += ` | Move: ${meters.toFixed(1)}m`;
 
-          // Check if movement is valid
           if (speedMph > MAX_SPEED_MPH) {
             debug += ` (Too fast: ${speedMph.toFixed(1)}mph)`;
           } else if (meters >= MIN_METERS) {
-            // Valid movement!
             distanceRef.current += meters;
             setMovementCount(prev => prev + 1);
             setDistanceMiles(distanceRef.current / 1609.344);
@@ -139,7 +128,6 @@ const App: React.FC = () => {
             debug += ` (Need >${MIN_METERS}m)`;
           }
         } else {
-          // First position
           lastPosRef.current = coords;
           debug += ' | First position set';
         }
@@ -158,7 +146,7 @@ const App: React.FC = () => {
     );
   };
 
-  const stopTracking = () => {
+  const stopTracking = async () => {
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
@@ -168,14 +156,32 @@ const App: React.FC = () => {
     const finalMiles = distanceRef.current / 1609.344;
     const tokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
     
-    alert(
-      `Run Complete!\n\n` +
-      `Distance: ${finalMiles.toFixed(3)} miles\n` +
-      `Time: ${formatTime(elapsedTime)}\n` +
-      `Valid Movements: ${movementCount}\n` +
-      `GPS Updates: ${updateCount}\n` +
-      `Tokens Earned: ${tokens} FYTS`
-    );
+    // Save to Firebase
+    try {
+      await addDoc(collection(db, 'runs'), {
+        wallet: wallet,
+        distance: finalMiles,
+        time: formatTime(elapsedTime),
+        duration: elapsedTime,
+        date: new Date().toISOString(),
+        tokens: tokens,
+        status: 'pending',
+        gpsUpdates: updateCount,
+        movements: movementCount,
+        createdAt: new Date()
+      });
+      
+      alert(
+        `Run Submitted!\n\n` +
+        `Distance: ${finalMiles.toFixed(3)} miles\n` +
+        `Time: ${formatTime(elapsedTime)}\n` +
+        `Tokens Pending: ${tokens} FYTS\n\n` +
+        `Your run has been saved for admin review.`
+      );
+    } catch (error) {
+      console.error('Error saving run:', error);
+      alert('Error saving run. Please try again.');
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -196,11 +202,38 @@ const App: React.FC = () => {
     return '--:--';
   };
 
+  // Check for admin access
+  const checkAdminAccess = () => {
+    const password = prompt('Enter admin password:');
+    if (password === 'admin123') {
+      window.location.href = '/admin';
+    } else {
+      alert('Invalid password');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1 style={{ textAlign: 'center' }}>FYTS Run Tracker</h1>
 
-      {/* Wallet Section */}
+      <button
+        onClick={checkAdminAccess}
+        style={{
+          position: 'fixed',
+          bottom: '10px',
+          right: '10px',
+          padding: '5px 10px',
+          fontSize: '12px',
+          backgroundColor: '#6c757d',
+          color: 'white',
+          border: 'none',
+          borderRadius: '3px',
+          opacity: 0.5
+        }}
+      >
+        Admin
+      </button>
+
       <div style={{ 
         marginBottom: '20px', 
         padding: '20px', 
@@ -231,7 +264,6 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* GPS Tracking Section */}
       <div style={{ 
         padding: '20px', 
         backgroundColor: tracking ? '#e8ffe8' : '#f5f5f5',
@@ -261,7 +293,6 @@ const App: React.FC = () => {
           </button>
         ) : (
           <div>
-            {/* Main Stats */}
             <div style={{ 
               backgroundColor: 'white', 
               padding: '15px', 
@@ -276,7 +307,6 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* Debug Info Box */}
             <div style={{ 
               backgroundColor: '#f0f8ff', 
               padding: '10px', 
@@ -294,7 +324,6 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* Stop Button */}
             <button
               onClick={stopTracking}
               style={{
@@ -312,23 +341,6 @@ const App: React.FC = () => {
             </button>
           </div>
         )}
-      </div>
-
-      {/* Instructions */}
-      <div style={{ 
-        marginTop: '20px', 
-        padding: '15px',
-        backgroundColor: '#fff3cd',
-        borderRadius: '5px',
-        fontSize: '14px'
-      }}>
-        <strong>Tips for best GPS:</strong>
-        <ul style={{ margin: '5px 0 0 0', paddingLeft: '20px' }}>
-          <li>Use outdoors with clear sky view</li>
-          <li>Walk at least 10 feet between stops</li>
-          <li>Keep phone screen on</li>
-          <li>Allow location access when prompted</li>
-        </ul>
       </div>
     </div>
   );
