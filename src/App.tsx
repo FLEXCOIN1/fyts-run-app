@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import AdminDashboard from './components/AdminDashboard';
 import './App.css';
 
 const App: React.FC = () => {
@@ -12,6 +13,7 @@ const App: React.FC = () => {
   const [distanceMiles, setDistanceMiles] = useState(0);
   const [debugInfo, setDebugInfo] = useState<string>('Waiting for GPS...');
   const [movementCount, setMovementCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const startTime = useRef<Date | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
@@ -156,7 +158,6 @@ const App: React.FC = () => {
     const finalMiles = distanceRef.current / 1609.344;
     const tokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
     
-    // Save to Firebase
     try {
       await addDoc(collection(db, 'runs'), {
         wallet: wallet,
@@ -202,16 +203,42 @@ const App: React.FC = () => {
     return '--:--';
   };
 
-  // Check for admin access
   const checkAdminAccess = () => {
     const password = prompt('Enter admin password:');
-    if (password === 'admin123') {
-      window.location.href = '/admin';
+    if (password === 'Fyts123!') {
+      setIsAdmin(true);
     } else {
       alert('Invalid password');
     }
   };
 
+  // Show admin dashboard if admin mode is active
+  if (isAdmin) {
+    return (
+      <div>
+        <button 
+          onClick={() => setIsAdmin(false)}
+          style={{ 
+            position: 'fixed', 
+            top: '10px', 
+            right: '10px', 
+            padding: '10px 20px',
+            backgroundColor: '#6c757d',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            zIndex: 1000
+          }}
+        >
+          Exit Admin
+        </button>
+        <AdminDashboard />
+      </div>
+    );
+  }
+
+  // Regular user interface
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1 style={{ textAlign: 'center' }}>FYTS Run Tracker</h1>
