@@ -21,35 +21,35 @@ const RunHistory: React.FC<RunHistoryProps> = ({ wallet }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadUserRuns = async () => {
+      try {
+        const runsQuery = query(
+          collection(db, 'runs'),
+          where('wallet', '==', wallet),
+          orderBy('date', 'desc')
+        );
+        const querySnapshot = await getDocs(runsQuery);
+        const runsData: Run[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          runsData.push({
+            id: doc.id,
+            ...doc.data()
+          } as Run);
+        });
+        
+        setRuns(runsData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading runs:', error);
+        setLoading(false);
+      }
+    };
+
     if (wallet) {
       loadUserRuns();
     }
   }, [wallet]);
-
-  const loadUserRuns = async () => {
-    try {
-      const runsQuery = query(
-        collection(db, 'runs'),
-        where('wallet', '==', wallet),
-        orderBy('date', 'desc')
-      );
-      const querySnapshot = await getDocs(runsQuery);
-      const runsData: Run[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        runsData.push({
-          id: doc.id,
-          ...doc.data()
-        } as Run);
-      });
-      
-      setRuns(runsData);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading runs:', error);
-      setLoading(false);
-    }
-  };
 
   const getTotalEarned = () => {
     return runs
