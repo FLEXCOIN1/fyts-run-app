@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
+import RunHistory from './components/RunHistory';
 import './App.css';
 
 const App: React.FC = () => {
@@ -14,6 +15,7 @@ const App: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<string>('Waiting for GPS...');
   const [movementCount, setMovementCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const startTime = useRef<Date | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
@@ -72,6 +74,7 @@ const App: React.FC = () => {
     distanceRef.current = 0;
     lastPosRef.current = null;
     startTime.current = new Date();
+    setShowHistory(false);
 
     if (!('geolocation' in navigator)) {
       setDebugInfo('GPS not supported!');
@@ -179,6 +182,8 @@ const App: React.FC = () => {
         `Tokens Pending: ${tokens} FYTS\n\n` +
         `Your run has been saved for admin review.`
       );
+      
+      setShowHistory(true);
     } catch (error) {
       console.error('Error saving run:', error);
       alert('Error saving run. Please try again.');
@@ -205,14 +210,13 @@ const App: React.FC = () => {
 
   const checkAdminAccess = () => {
     const password = prompt('Enter admin password:');
-    if (password === 'Fyts123!') {
+    if (password === 'Fyts123') {
       setIsAdmin(true);
     } else {
       alert('Invalid password');
     }
   };
 
-  // Show admin dashboard if admin mode is active
   if (isAdmin) {
     return (
       <div>
@@ -238,7 +242,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Regular user interface
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1 style={{ textAlign: 'center' }}>FYTS Run Tracker</h1>
@@ -284,12 +287,31 @@ const App: React.FC = () => {
             Enter Wallet Address
           </button>
         ) : (
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ color: '#28a745' }}>✓ </span>
-            {wallet.substring(0, 6)}...{wallet.substring(38)}
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <span style={{ color: '#28a745' }}>✓ </span>
+              {wallet.substring(0, 6)}...{wallet.substring(38)}
+            </div>
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              style={{ 
+                padding: '8px 16px',
+                fontSize: '14px',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              {showHistory ? 'Hide' : 'Show'} Run History
+            </button>
           </div>
         )}
       </div>
+
+      {showHistory && wallet && <RunHistory wallet={wallet} />}
 
       <div style={{ 
         padding: '20px', 
