@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
+import Disclaimer from './components/Disclaimer';
+import Instructions from './components/Instructions';
+import TermsOfService from './legal/TermsOfService';
+import PrivacyPolicy from './legal/PrivacyPolicy';
 import './App.css';
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [tracking, setTracking] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -16,6 +21,8 @@ const App: React.FC = () => {
   const [movementCount, setMovementCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
 
   const startTime = useRef<Date | null>(null);
   const intervalId = useRef<NodeJS.Timeout | null>(null);
@@ -26,6 +33,15 @@ const App: React.FC = () => {
   const MIN_METERS = 3;
   const MAX_ACCURACY = 65;
   const MAX_SPEED_MPH = 15;
+
+  useEffect(() => {
+    if (wallet) {
+      const termsAccepted = localStorage.getItem(`fyts_terms_${wallet}`);
+      if (!termsAccepted) {
+        setShowDisclaimer(true);
+      }
+    }
+  }, [wallet]);
 
   const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371000;
@@ -53,15 +69,23 @@ const App: React.FC = () => {
   }, [tracking]);
 
   const connectWallet = () => {
-    const address = prompt('Enter your wallet address (0x...):');
-    if (address && address.startsWith('0x')) {
+    const address = prompt('Enter your Polygon wallet address (0x...):');
+    if (address && address.startsWith('0x') && address.length === 42) {
       setWallet(address);
+    } else {
+      alert('Please enter a valid Polygon wallet address');
     }
   };
 
   const startTracking = () => {
     if (!wallet) {
-      alert('Please connect wallet first');
+      alert('Please connect your wallet first to participate in the validation network');
+      return;
+    }
+
+    const termsAccepted = localStorage.getItem(`fyts_terms_${wallet}`);
+    if (!termsAccepted) {
+      setShowDisclaimer(true);
       return;
     }
 
@@ -70,15 +94,16 @@ const App: React.FC = () => {
     setUpdateCount(0);
     setMovementCount(0);
     setDistanceMiles(0);
-    setDebugInfo('Starting GPS...');
+    setDebugInfo('Initializing movement validation...');
     distanceRef.current = 0;
     lastPosRef.current = null;
     startTime.current = new Date();
     setShowHistory(false);
+    setShowInstructions(false);
 
     if (!('geolocation' in navigator)) {
-      setDebugInfo('GPS not supported!');
-      alert('Geolocation not supported');
+      setDebugInfo('GPS not supported on this device');
+      alert('GPS required for movement validation');
       return;
     }
 
@@ -89,7 +114,7 @@ const App: React.FC = () => {
         setDebugInfo(`GPS locked! Accuracy: ${pos.coords.accuracy.toFixed(0)}m`);
       },
       (err) => {
-        setDebugInfo(`Initial GPS error: ${err.message}`);
+        setDebugInfo(`GPS initialization error: ${err.message}`);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -103,7 +128,7 @@ const App: React.FC = () => {
         let debug = `Accuracy: ${coords.accuracy.toFixed(0)}m`;
 
         if (coords.accuracy > MAX_ACCURACY) {
-          debug += ` (Poor - need <${MAX_ACCURACY}m)`;
+          debug += ` (Need <${MAX_ACCURACY}m for validation)`;
           setDebugInfo(debug);
           return;
         }
@@ -119,22 +144,22 @@ const App: React.FC = () => {
           const timeDiff = 5;
           const speedMph = (meters / timeDiff) * 2.237;
 
-          debug += ` | Move: ${meters.toFixed(1)}m`;
+          debug += ` | Movement: ${meters.toFixed(1)}m`;
 
           if (speedMph > MAX_SPEED_MPH) {
-            debug += ` (Too fast: ${speedMph.toFixed(1)}mph)`;
+            debug += ` (Speed exceeds validation limit)`;
           } else if (meters >= MIN_METERS) {
             distanceRef.current += meters;
             setMovementCount(prev => prev + 1);
             setDistanceMiles(distanceRef.current / 1609.344);
-            debug += ` ✓ Added!`;
+            debug += ` ✓ Validated`;
             lastPosRef.current = coords;
           } else {
-            debug += ` (Need >${MIN_METERS}m)`;
+            debug += ` (Min ${MIN_METERS}m for validation)`;
           }
         } else {
           lastPosRef.current = coords;
-          debug += ' | First position set';
+          debug += ' | Initial position set';
         }
 
         setDebugInfo(debug);
@@ -159,7 +184,7 @@ const App: React.FC = () => {
     setTracking(false);
 
     const finalMiles = distanceRef.current / 1609.344;
-    const tokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
+    const validationTokens = finalMiles >= 1 ? Math.floor(finalMiles) : finalMiles >= 0.5 ? 0.5 : 0;
     
     try {
       await addDoc(collection(db, 'runs'), {
@@ -168,25 +193,28 @@ const App: React.FC = () => {
         time: formatTime(elapsedTime),
         duration: elapsedTime,
         date: new Date().toISOString(),
-        tokens: tokens,
+        tokens: validationTokens,
         status: 'pending',
         gpsUpdates: updateCount,
         movements: movementCount,
-        createdAt: new Date()
+        createdAt: new Date(),
+        validationType: 'movement_data'
       });
       
       alert(
-        `Run Submitted!\n\n` +
+        `Movement Data Submitted for Validation\n\n` +
         `Distance: ${finalMiles.toFixed(3)} miles\n` +
-        `Time: ${formatTime(elapsedTime)}\n` +
-        `Tokens Pending: ${tokens} FYTS\n\n` +
-        `Your run has been saved for admin review.`
+        `Duration: ${formatTime(elapsedTime)}\n` +
+        `Validation Pending: ${validationTokens} FYTS\n\n` +
+        `Your movement data will be validated within 3-5 business days.\n` +
+        `Tokens will be distributed upon successful validation.`
       );
       
       setShowHistory(true);
+      setShowInstructions(false);
     } catch (error) {
-      console.error('Error saving run:', error);
-      alert('Error saving run. Please try again.');
+      console.error('Error submitting movement data:', error);
+      alert('Error submitting movement data. Please try again.');
     }
   };
 
@@ -209,11 +237,11 @@ const App: React.FC = () => {
   };
 
   const checkAdminAccess = () => {
-    const password = prompt('Enter admin password:');
+    const password = prompt('Enter validation admin password:');
     if (password === 'Fyts123') {
       setIsAdmin(true);
     } else {
-      alert('Invalid password');
+      alert('Invalid admin credentials');
     }
   };
 
@@ -244,7 +272,19 @@ const App: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1 style={{ textAlign: 'center' }}>FYTS Run Tracker</h1>
+      {showDisclaimer && (
+        <Disclaimer 
+          wallet={wallet}
+          onAccept={() => setShowDisclaimer(false)}
+        />
+      )}
+
+      <h1 style={{ textAlign: 'center', marginBottom: '5px' }}>
+        FYTS Movement Validation Protocol
+      </h1>
+      <p style={{ textAlign: 'center', color: '#666', marginTop: '0', fontSize: '14px' }}>
+        Decentralized Network Validation Through Movement Data
+      </p>
 
       <button
         onClick={checkAdminAccess}
@@ -264,6 +304,20 @@ const App: React.FC = () => {
         Admin
       </button>
 
+      <div style={{
+        position: 'fixed',
+        bottom: '10px',
+        left: '10px',
+        fontSize: '12px'
+      }}>
+        <Link to="/terms" style={{ color: '#6c757d', marginRight: '10px' }}>
+          Terms of Service
+        </Link>
+        <Link to="/privacy" style={{ color: '#6c757d' }}>
+          Privacy Policy
+        </Link>
+      </div>
+
       <div style={{ 
         marginBottom: '20px', 
         padding: '20px', 
@@ -271,26 +325,31 @@ const App: React.FC = () => {
         borderRadius: '10px' 
       }}>
         {!wallet ? (
-          <button 
-            onClick={connectWallet} 
-            style={{ 
-              padding: '12px 24px',
-              fontSize: '16px',
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            Enter Wallet Address
-          </button>
+          <>
+            <p style={{ textAlign: 'center', marginBottom: '15px', fontSize: '14px', color: '#666' }}>
+              Connect your Polygon wallet to participate in network validation
+            </p>
+            <button 
+              onClick={connectWallet} 
+              style={{ 
+                padding: '12px 24px',
+                fontSize: '16px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              Connect Wallet Address
+            </button>
+          </>
         ) : (
           <div>
             <div style={{ textAlign: 'center', marginBottom: '10px' }}>
               <span style={{ color: '#28a745' }}>✓ </span>
-              {wallet.substring(0, 6)}...{wallet.substring(38)}
+              Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
             </div>
             <button 
               onClick={() => setShowHistory(!showHistory)}
@@ -305,12 +364,13 @@ const App: React.FC = () => {
                 width: '100%'
               }}
             >
-              {showHistory ? 'Hide' : 'Show'} Run History
+              {showHistory ? 'Hide' : 'Show'} Validation History
             </button>
           </div>
         )}
       </div>
 
+      {showInstructions && wallet && !tracking && <Instructions />}
       {showHistory && wallet && <RunHistory wallet={wallet} />}
 
       <div style={{ 
@@ -320,7 +380,7 @@ const App: React.FC = () => {
         border: tracking ? '2px solid #4CAF50' : '2px solid #ddd'
       }}>
         <h2 style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
-          {tracking ? '🔴 Recording' : '🏃 Ready to Run'}
+          {tracking ? '📡 Validating Movement' : '🔐 Ready to Validate'}
         </h2>
 
         {!tracking ? (
@@ -338,7 +398,7 @@ const App: React.FC = () => {
               width: '100%'
             }}
           >
-            START RUN
+            Submit Movement Data
           </button>
         ) : (
           <div>
@@ -364,7 +424,7 @@ const App: React.FC = () => {
               fontSize: '12px',
               fontFamily: 'monospace'
             }}>
-              <div>📊 Updates: {updateCount} | Movements: {movementCount}</div>
+              <div>📊 Data Points: {updateCount} | Validated: {movementCount}</div>
               <div style={{ marginTop: '5px' }}>🎯 {debugInfo}</div>
               {currentPosition && (
                 <div style={{ marginTop: '5px', color: '#666' }}>
@@ -386,12 +446,37 @@ const App: React.FC = () => {
                 width: '100%'
               }}
             >
-              STOP RUN
+              Complete Validation
             </button>
           </div>
         )}
       </div>
+
+      <div style={{
+        marginTop: '20px',
+        padding: '15px',
+        backgroundColor: '#fff3cd',
+        borderRadius: '5px',
+        fontSize: '12px',
+        textAlign: 'center'
+      }}>
+        <strong>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
+        Not an investment. No monetary value guaranteed.
+      </div>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
   );
 };
 
