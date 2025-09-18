@@ -6,23 +6,19 @@ interface DisclaimerProps {
   onDecline: () => void;
 }
 
-const Disclaimer: React.FC<DisclaimerProps> = ({ onAccept, onDecline }) => {
+const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) => {
   const [termsChecked, setTermsChecked] = useState(false);
   const [notInvestmentChecked, setNotInvestmentChecked] = useState(false);
   const [riskChecked, setRiskChecked] = useState(false);
   const [healthChecked, setHealthChecked] = useState(false);
-  const [dataChecked, setDataChecked] = useState(false);
-  const [noGuaranteeChecked, setNoGuaranteeChecked] = useState(false);
 
-  const allChecked = termsChecked && notInvestmentChecked && riskChecked && 
-                    healthChecked && dataChecked && noGuaranteeChecked;
+  const allChecked = termsChecked && notInvestmentChecked && riskChecked && healthChecked;
 
   const handleAccept = () => {
     if (allChecked) {
-      // Log acceptance with timestamp
       const acceptanceData = {
         timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
+        wallet: wallet || 'unknown',
         acceptedTerms: true
       };
       localStorage.setItem('fyts_disclaimer_accepted', JSON.stringify(acceptanceData));
@@ -48,7 +44,7 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ onAccept, onDecline }) => {
         backgroundColor: 'white',
         borderRadius: '12px',
         padding: '30px',
-        maxWidth: '800px',
+        maxWidth: '700px',
         maxHeight: '90vh',
         overflow: 'auto',
         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
@@ -73,8 +69,7 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ onAccept, onDecline }) => {
             IMPORTANT: READ CAREFULLY BEFORE PROCEEDING
           </h4>
           <p style={{ margin: '0', fontSize: '14px', color: '#856404' }}>
-            By using this application, you acknowledge these terms are legally binding. 
-            If you do not agree, discontinue use immediately.
+            By using this application, you acknowledge these terms are legally binding.
           </p>
         </div>
 
@@ -137,36 +132,6 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ onAccept, onDecline }) => {
               hydrated, and seek medical attention if experiencing any adverse symptoms.
             </span>
           </label>
-
-          <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '15px', cursor: 'pointer' }}>
-            <input 
-              type="checkbox"
-              checked={dataChecked}
-              onChange={(e) => setDataChecked(e.target.checked)}
-              style={{ marginRight: '10px', marginTop: '4px', cursor: 'pointer' }}
-            />
-            <span>
-              I consent to GPS location tracking and data processing necessary for movement 
-              validation. I understand my location data is used solely for distance and 
-              route verification. I have reviewed the Privacy Policy regarding data handling 
-              and retention.
-            </span>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '15px', cursor: 'pointer' }}>
-            <input 
-              type="checkbox"
-              checked={noGuaranteeChecked}
-              onChange={(e) => setNoGuaranteeChecked(e.target.checked)}
-              style={{ marginRight: '10px', marginTop: '4px', cursor: 'pointer' }}
-            />
-            <span>
-              I understand that NO tokens are guaranteed for any activity. All validation 
-              is subject to Protocol rules, admin review, and technical requirements. The 
-              Protocol reserves the right to modify validation criteria, suspend accounts, 
-              or discontinue operations at any time.
-            </span>
-          </label>
         </div>
 
         <div style={{ 
@@ -184,7 +149,6 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ onAccept, onDecline }) => {
             no warranties and disclaims all liability to the fullest extent permitted by law.
           </p>
           <p style={{ margin: '0' }}>
-            <strong>Contact:</strong> For questions about these terms, contact [your-legal-email].
             Last updated: {new Date().toLocaleDateString()}
           </p>
         </div>
@@ -212,7 +176,7 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ onAccept, onDecline }) => {
           </button>
 
           <div style={{ fontSize: '14px', color: allChecked ? '#28a745' : '#dc3545' }}>
-            {allChecked ? 'All requirements met' : 'Please check all boxes to continue'}
+            {allChecked ? 'Ready to continue' : 'Please check all boxes'}
           </div>
 
           <button
