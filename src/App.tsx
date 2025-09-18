@@ -276,6 +276,7 @@ const MainApp: React.FC = () => {
         <Disclaimer 
           wallet={wallet}
           onAccept={() => setShowDisclaimer(false)}
+          onDecline={() => setShowDisclaimer(false)}
         />
       )}
 
