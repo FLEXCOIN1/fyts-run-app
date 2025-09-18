@@ -15,15 +15,25 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
   const allChecked = termsChecked && notInvestmentChecked && riskChecked && healthChecked;
 
   const handleAccept = () => {
-    if (allChecked) {
+    if (allChecked && wallet) {
       const acceptanceData = {
         timestamp: new Date().toISOString(),
-        wallet: wallet || 'unknown',
-        acceptedTerms: true
+        wallet: wallet,
+        acceptedTerms: true,
+        userAgent: navigator.userAgent
       };
-      localStorage.setItem('fyts_disclaimer_accepted', JSON.stringify(acceptanceData));
+      // Use the same key format that App.tsx checks for
+      localStorage.setItem(`fyts_terms_${wallet}`, JSON.stringify(acceptanceData));
       onAccept();
     }
+  };
+
+  const handleDecline = () => {
+    // Clear any existing acceptance
+    if (wallet) {
+      localStorage.removeItem(`fyts_terms_${wallet}`);
+    }
+    onDecline();
   };
 
   return (
@@ -54,8 +64,13 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
             FYTS Movement Validation Protocol
           </h2>
           <h3 style={{ margin: '0', color: '#7f8c8d', fontWeight: 'normal' }}>
-            Terms of Use & Risk Disclosure
+            Terms of Use & Legal Disclaimers
           </h3>
+          {wallet && (
+            <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#666' }}>
+              Wallet: {wallet.substring(0, 8)}...{wallet.substring(wallet.length - 6)}
+            </p>
+          )}
         </div>
 
         <div style={{ 
@@ -69,7 +84,8 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
             IMPORTANT: READ CAREFULLY BEFORE PROCEEDING
           </h4>
           <p style={{ margin: '0', fontSize: '14px', color: '#856404' }}>
-            By using this application, you acknowledge these terms are legally binding.
+            By using this application, you acknowledge these terms are legally binding. 
+            If you do not agree to all terms, do not use this application.
           </p>
         </div>
 
@@ -83,8 +99,8 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
             />
             <span style={{ fontWeight: 'bold' }}>
               I have read and agree to the Terms of Service and Privacy Policy. I understand 
-              this is a GPS activity tracking application that validates physical movement 
-              for potential token rewards through a decentralized protocol.
+              this is a GPS movement tracking application that validates physical activity 
+              for potential token rewards through a decentralized validation protocol.
             </span>
           </label>
 
@@ -98,8 +114,8 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
             <span style={{ fontWeight: 'bold' }}>
               I acknowledge that FYTS tokens are NOT an investment, NOT securities, and NOT 
               financial instruments. This Protocol makes NO representations about token value, 
-              future performance, or returns. Any secondary market trading is independent of 
-              this Protocol.
+              future performance, or returns. Any secondary market trading is completely 
+              independent of this Protocol and not endorsed.
             </span>
           </label>
 
@@ -112,9 +128,9 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
             />
             <span>
               I understand and accept ALL risks including: tokens may have zero value, total 
-              loss of any value exchanged for tokens, Protocol may cease operation without 
-              notice, validation requirements may change, smart contract risks, blockchain 
-              network failures, and technical vulnerabilities may occur.
+              loss of any value, Protocol may cease operation without notice, validation 
+              requirements may change at any time, smart contract vulnerabilities, blockchain 
+              network failures, technical bugs, and complete loss of access to tokens.
             </span>
           </label>
 
@@ -127,9 +143,10 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
             />
             <span>
               I acknowledge the importance of consulting healthcare professionals before 
-              beginning any exercise program. I take full responsibility for my health and 
-              safety during physical activities. I will exercise within my limits, stay 
-              hydrated, and seek medical attention if experiencing any adverse symptoms.
+              beginning any exercise program. I take full responsibility for my health, 
+              safety, and physical limitations during all activities. I will exercise 
+              within my capabilities, stay properly hydrated, and seek immediate medical 
+              attention for any adverse symptoms or injuries.
             </span>
           </label>
         </div>
@@ -144,12 +161,20 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
           color: '#6c757d'
         }}>
           <p style={{ margin: '0 0 10px 0' }}>
-            <strong>Legal Disclaimer:</strong> This Protocol operates under applicable laws. 
-            Users are responsible for compliance with local regulations. The Protocol makes 
-            no warranties and disclaims all liability to the fullest extent permitted by law.
+            <strong>Legal Notice:</strong> This Protocol operates as a technology demonstration. 
+            Users are solely responsible for compliance with applicable laws and regulations 
+            in their jurisdiction. The Protocol makes no warranties and disclaims all 
+            liability to the fullest extent permitted by law.
+          </p>
+          <p style={{ margin: '0 0 10px 0' }}>
+            <strong>Data Usage:</strong> GPS location data is processed solely for distance 
+            validation and is not stored permanently. Movement patterns are not tracked 
+            beyond validation requirements.
           </p>
           <p style={{ margin: '0' }}>
-            Last updated: {new Date().toLocaleDateString()}
+            <strong>No Guarantees:</strong> No tokens are guaranteed for any activity. 
+            All validation is subject to technical requirements, admin review, and Protocol 
+            operation status. Terms may be updated at any time.
           </p>
         </div>
 
@@ -161,7 +186,7 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
           paddingTop: '20px'
         }}>
           <button
-            onClick={onDecline}
+            onClick={handleDecline}
             style={{
               padding: '12px 24px',
               backgroundColor: '#6c757d',
@@ -172,11 +197,11 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ wallet, onAccept, onDecline }) 
               fontSize: '16px'
             }}
           >
-            Decline
+            Decline & Exit
           </button>
 
           <div style={{ fontSize: '14px', color: allChecked ? '#28a745' : '#dc3545' }}>
-            {allChecked ? 'Ready to continue' : 'Please check all boxes'}
+            {allChecked ? 'Ready to proceed' : 'Please check all boxes to continue'}
           </div>
 
           <button
