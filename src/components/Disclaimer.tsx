@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 interface DisclaimerProps {
+  wallet?: string;
   onAccept: () => void;
   onDecline: () => void;
 }
