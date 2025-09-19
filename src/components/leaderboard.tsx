@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface LeaderboardEntry {
   wallet: string;
@@ -8,74 +8,105 @@ interface LeaderboardEntry {
   totalTokens: number;
   runCount: number;
   avgDistance: number;
+  dailyAvg: number;
   lastActivity: string;
 }
 
 const Leaderboard: React.FC = () => {
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'weekly' | 'monthly' | 'alltime'>('weekly');
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+
+  const getFirebaseLeaderboard = async (period: 'daily' | 'weekly' | 'monthly') => {
+    try {
+      let cutoffDate: Date;
+      const now = new Date();
+      
+      switch (period) {
+        case 'daily':
+          cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'weekly':
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'monthly':
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+      }
+
+      const q = query(
+        collection(db, 'runs'),
+        where('status', '==', 'approved'),
+        where('date', '>=', cutoffDate.toISOString())
+      );
+
+      const snapshot = await getDocs(q);
+      const userStats: { [wallet: string]: any } = {};
+
+      snapshot.forEach((doc) => {
+        const run = doc.data();
+        const wallet = run.wallet;
+        const distance = run.distance || 0;
+        const tokens = run.tokens || 0;
+        const runDate = run.date;
+
+        if (!userStats[wallet]) {
+          userStats[wallet] = {
+            wallet,
+            totalDistance: 0,
+            totalTokens: 0,
+            runCount: 0,
+            dates: []
+          };
+        }
+
+        userStats[wallet].totalDistance += distance;
+        userStats[wallet].totalTokens += tokens;
+        userStats[wallet].runCount += 1;
+        userStats[wallet].dates.push(runDate);
+      });
+
+      // Convert to leaderboard entries with health metrics
+      const periodDays = period === 'daily' ? 1 : period === 'weekly' ? 7 : 30;
+      
+      const leaderboardData: LeaderboardEntry[] = Object.values(userStats).map((stats: any) => {
+        const avgDistance = stats.totalDistance / stats.runCount;
+        const dailyAvg = stats.totalDistance / periodDays;
+        const lastActivity = stats.dates.reduce((latest: string, date: string) => 
+          new Date(date) > new Date(latest) ? date : latest, stats.dates[0]);
+
+        return {
+          wallet: stats.wallet,
+          totalDistance: stats.totalDistance,
+          totalTokens: stats.totalTokens,
+          runCount: stats.runCount,
+          avgDistance,
+          dailyAvg,
+          lastActivity
+        };
+      });
+
+      // Sort by total distance
+      leaderboardData.sort((a, b) => b.totalDistance - a.totalDistance);
+      
+      return leaderboardData.slice(0, 20); // Top 20
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      throw err;
+    }
+  };
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
       setLoading(true);
+      setError(null);
       try {
-        let startDate: Date;
-        const now = new Date();
-        
-        switch (view) {
-          case 'weekly':
-            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            break;
-          case 'monthly':
-            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            break;
-          case 'alltime':
-            startDate = new Date(0);
-            break;
-        }
-
-        const q = query(
-          collection(db, 'runs'),
-          where('status', '==', 'approved'),
-          where('date', '>=', startDate.toISOString())
-        );
-
-        const querySnapshot = await getDocs(q);
-        const runsMap: { [wallet: string]: any[] } = {};
-
-        querySnapshot.forEach((doc) => {
-          const run = doc.data();
-          if (!runsMap[run.wallet]) {
-            runsMap[run.wallet] = [];
-          }
-          runsMap[run.wallet].push(run);
-        });
-
-        const leaderboardData: LeaderboardEntry[] = Object.keys(runsMap).map(wallet => {
-          const runs = runsMap[wallet];
-          const totalDistance = runs.reduce((sum, run) => sum + run.distance, 0);
-          const totalTokens = runs.reduce((sum, run) => sum + run.tokens, 0);
-          const runCount = runs.length;
-          const avgDistance = totalDistance / runCount;
-          const lastActivity = runs.reduce((latest, run) => 
-            new Date(run.date) > new Date(latest) ? run.date : latest, runs[0].date);
-
-          return {
-            wallet,
-            totalDistance,
-            totalTokens,
-            runCount,
-            avgDistance,
-            lastActivity
-          };
-        });
-
-        leaderboardData.sort((a, b) => b.totalDistance - a.totalDistance);
-        setLeaders(leaderboardData.slice(0, 20));
-        setLoading(false);
+        const data = await getFirebaseLeaderboard(view);
+        setLeaders(data);
       } catch (err) {
-        console.error('Error fetching leaderboard:', err);
+        setError('Failed to load leaderboard data');
+      } finally {
         setLoading(false);
       }
     };
@@ -96,10 +127,38 @@ const Leaderboard: React.FC = () => {
     }
   };
 
+  const getHealthBadge = (dailyAvg: number) => {
+    if (dailyAvg <= 2) return { emoji: '🌱', text: 'Healthy Pace', color: '#28a745' };
+    if (dailyAvg <= 4) return { emoji: '💪', text: 'Active', color: '#17a2b8' };
+    if (dailyAvg <= 6) return { emoji: '🏃', text: 'Very Active', color: '#fd7e14' };
+    return { emoji: '⚠️', text: 'High Volume - Rest Days Important', color: '#dc3545' };
+  };
+
   if (loading) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
+      <div style={{ 
+        padding: '20px', 
+        textAlign: 'center',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '10px',
+        marginTop: '10px'
+      }}>
         Loading community leaderboard...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ 
+        padding: '20px', 
+        textAlign: 'center',
+        backgroundColor: '#f8d7da',
+        color: '#721c24',
+        borderRadius: '10px',
+        marginTop: '10px'
+      }}>
+        {error}
       </div>
     );
   }
@@ -115,6 +174,7 @@ const Leaderboard: React.FC = () => {
         Community Leaderboard
       </h3>
 
+      {/* Health Disclaimer */}
       <div style={{
         backgroundColor: '#d1ecf1',
         border: '1px solid #bee5eb',
@@ -123,22 +183,24 @@ const Leaderboard: React.FC = () => {
         marginBottom: '20px',
         fontSize: '14px'
       }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
-          Healthy Movement Reminder
+        <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#0c5460' }}>
+          Health First Approach
         </div>
         <div style={{ fontSize: '12px', color: '#0c5460' }}>
-          This leaderboard celebrates consistent, healthy movement within reasonable limits. 
-          Always prioritize rest, recovery, and listen to your body.
+          This leaderboard celebrates consistent, sustainable movement. Always prioritize 
+          rest days, proper recovery, and listen to your body. Consult healthcare professionals 
+          for exercise guidance. High volume warnings indicate when rest may be needed.
         </div>
       </div>
 
+      {/* Period Selector */}
       <div style={{
         display: 'flex',
         justifyContent: 'center',
         marginBottom: '20px',
-        gap: '10px'
+        gap: '8px'
       }}>
-        {(['weekly', 'monthly', 'alltime'] as const).map((period) => (
+        {(['daily', 'weekly', 'monthly'] as const).map((period) => (
           <button
             key={period}
             onClick={() => setView(period)}
@@ -153,11 +215,68 @@ const Leaderboard: React.FC = () => {
               textTransform: 'capitalize'
             }}
           >
-            {period === 'alltime' ? 'All Time' : period}
+            {period}
           </button>
         ))}
       </div>
 
+      {/* Summary Stats */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+        gap: '10px',
+        marginBottom: '20px'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#007bff' }}>
+            {leaders.length}
+          </div>
+          <div style={{ fontSize: '11px', color: '#666' }}>Validators</div>
+        </div>
+
+        <div style={{
+          backgroundColor: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#17a2b8' }}>
+            {leaders.reduce((sum, l) => sum + l.totalDistance, 0).toFixed(0)}
+          </div>
+          <div style={{ fontSize: '11px', color: '#666' }}>Miles</div>
+        </div>
+
+        <div style={{
+          backgroundColor: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#28a745' }}>
+            {leaders.reduce((sum, l) => sum + l.totalTokens, 0)}
+          </div>
+          <div style={{ fontSize: '11px', color: '#666' }}>FYTS</div>
+        </div>
+
+        <div style={{
+          backgroundColor: 'white',
+          padding: '12px',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fd7e14' }}>
+            {leaders.reduce((sum, l) => sum + l.runCount, 0)}
+          </div>
+          <div style={{ fontSize: '11px', color: '#666' }}>Activities</div>
+        </div>
+      </div>
+
+      {/* Leaderboard List */}
       {leaders.length === 0 ? (
         <div style={{
           textAlign: 'center',
@@ -166,107 +285,124 @@ const Leaderboard: React.FC = () => {
           borderRadius: '8px',
           color: '#666'
         }}>
-          No validated activities yet for this time period. 
-          Be the first to start moving!
+          No approved activities yet for this period. Be the first to validate your movement!
         </div>
       ) : (
         <div style={{ backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden' }}>
-          {leaders.map((leader, index) => (
-            <div
-              key={leader.wallet}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '60px 2fr 1fr 1fr 1fr',
-                gap: '15px',
-                padding: '15px',
-                borderBottom: index < leaders.length - 1 ? '1px solid #dee2e6' : 'none',
-                alignItems: 'center',
-                backgroundColor: index < 3 ? '#f8f9fa' : 'transparent'
-              }}
-            >
-              <div style={{
-                fontSize: '24px',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center'
-              }}>
-                <div>{getRankEmoji(index)}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>
-                  #{index + 1}
-                </div>
-              </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '50px 2fr 1fr 1fr 1fr 1.5fr',
+            gap: '10px',
+            padding: '12px 15px',
+            backgroundColor: '#e9ecef',
+            fontWeight: 'bold',
+            fontSize: '11px',
+            textTransform: 'uppercase'
+          }}>
+            <div>Rank</div>
+            <div>Validator</div>
+            <div>Distance</div>
+            <div>Activities</div>
+            <div>Tokens</div>
+            <div>Health Status</div>
+          </div>
 
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                  {formatWallet(leader.wallet)}
+          {leaders.map((leader, index) => {
+            const healthBadge = getHealthBadge(leader.dailyAvg);
+            
+            return (
+              <div
+                key={leader.wallet}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '50px 2fr 1fr 1fr 1fr 1.5fr',
+                  gap: '10px',
+                  padding: '12px 15px',
+                  borderBottom: index < leaders.length - 1 ? '1px solid #dee2e6' : 'none',
+                  alignItems: 'center',
+                  backgroundColor: index < 3 ? '#f8f9fa' : 'transparent',
+                  fontSize: '14px'
+                }}
+              >
+                <div style={{
+                  fontSize: '18px',
+                  textAlign: 'center'
+                }}>
+                  <div>{getRankEmoji(index)}</div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>
+                    #{index + 1}
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
-                  {leader.runCount} activities
-                </div>
-              </div>
 
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', color: '#17a2b8' }}>
-                  {leader.totalDistance.toFixed(1)}
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>
+                    {formatWallet(leader.wallet)}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#666' }}>
+                    Last: {new Date(leader.lastActivity).toLocaleDateString()}
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
-                  miles
-                </div>
-              </div>
 
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', color: '#28a745' }}>
-                  {leader.totalTokens}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 'bold', color: '#17a2b8' }}>
+                    {leader.totalDistance.toFixed(1)}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>
+                    miles
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
-                  FYTS
-                </div>
-              </div>
 
-              <div style={{ textAlign: 'center', fontSize: '11px' }}>
-                <div style={{ color: '#666' }}>
-                  Avg: {leader.avgDistance.toFixed(1)}mi
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 'bold' }}>
+                    {leader.runCount}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>
+                    runs
+                  </div>
                 </div>
-                <div style={{ color: '#999' }}>
-                  {new Date(leader.lastActivity).toLocaleDateString()}
+
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 'bold', color: '#28a745' }}>
+                    {leader.totalTokens}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#666' }}>
+                    FYTS
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '10px',
+                    padding: '3px 6px',
+                    borderRadius: '10px',
+                    backgroundColor: healthBadge.color,
+                    color: 'white',
+                    fontWeight: 'bold',
+                    marginBottom: '3px'
+                  }}>
+                    {healthBadge.emoji} {healthBadge.text}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#666' }}>
+                    {leader.dailyAvg.toFixed(1)} mi/day avg
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <div style={{
-        marginTop: '20px',
-        padding: '15px',
+        marginTop: '15px',
+        padding: '12px',
         backgroundColor: 'white',
         borderRadius: '8px',
+        fontSize: '12px',
+        color: '#666',
         textAlign: 'center'
       }}>
-        <div style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
-          Community Impact ({view === 'alltime' ? 'All Time' : view})
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff' }}>
-              {leaders.length}
-            </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>Active Validators</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#17a2b8' }}>
-              {leaders.reduce((sum, l) => sum + l.totalDistance, 0).toFixed(0)}
-            </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>Total Miles</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#28a745' }}>
-              {leaders.reduce((sum, l) => sum + l.totalTokens, 0)}
-            </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>FYTS Distributed</div>
-          </div>
-        </div>
+        Showing {view} leaderboard • Only approved validation activities count • 
+        Rankings promote healthy, sustainable movement patterns
       </div>
     </div>
   );
