@@ -21,7 +21,6 @@ const MainApp: React.FC = () => {
   const [movementCount, setMovementCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
@@ -100,7 +99,6 @@ const MainApp: React.FC = () => {
     lastPosRef.current = null;
     startTime.current = new Date();
     setShowHistory(false);
-    setShowLeaderboard(false);
     setShowInstructions(false);
 
     if (!('geolocation' in navigator)) {
@@ -213,7 +211,6 @@ const MainApp: React.FC = () => {
       );
       
       setShowHistory(true);
-      setShowLeaderboard(false);
       setShowInstructions(false);
     } catch (error) {
       console.error('Error submitting movement data:', error);
@@ -246,24 +243,6 @@ const MainApp: React.FC = () => {
     } else {
       alert('Invalid admin credentials');
     }
-  };
-
-  const showHistoryView = () => {
-    setShowHistory(true);
-    setShowLeaderboard(false);
-    setShowInstructions(false);
-  };
-
-  const showLeaderboardView = () => {
-    setShowLeaderboard(true);
-    setShowHistory(false);
-    setShowInstructions(false);
-  };
-
-  const hideAllViews = () => {
-    setShowHistory(false);
-    setShowLeaderboard(false);
-    setShowInstructions(false);
   };
 
   if (isAdmin) {
@@ -374,64 +353,27 @@ const MainApp: React.FC = () => {
               Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
             </div>
             
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr 1fr', 
-              gap: '8px',
-              marginBottom: '10px'
-            }}>
-              <button 
-                onClick={showHistoryView}
-                style={{ 
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  backgroundColor: showHistory ? '#28a745' : '#17a2b8',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                My History
-              </button>
-              
-              <button 
-                onClick={showLeaderboardView}
-                style={{ 
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  backgroundColor: showLeaderboard ? '#28a745' : '#fd7e14',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                Leaderboard
-              </button>
-              
-              <button 
-                onClick={hideAllViews}
-                style={{ 
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  backgroundColor: (!showHistory && !showLeaderboard) ? '#28a745' : '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                Hide Views
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              style={{ 
+                padding: '10px 20px',
+                fontSize: '14px',
+                backgroundColor: showHistory ? '#28a745' : '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              {showHistory ? 'Hide' : 'Show'} Validation History
+            </button>
           </div>
         )}
       </div>
 
-      {showInstructions && wallet && !tracking && !showHistory && !showLeaderboard && <Instructions />}
+      {showInstructions && wallet && !tracking && !showHistory && <Instructions />}
       {showHistory && wallet && <RunHistory wallet={wallet} />}
-      {showLeaderboard && <Leaderboard />}
 
       <div style={{ 
         padding: '20px', 
