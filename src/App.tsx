@@ -4,7 +4,6 @@ import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
-import Leaderboard from './components/Leaderboard';
 import Disclaimer from './components/Disclaimer';
 import Instructions from './components/Instructions';
 import TermsOfService from './legal/TermsOfService';
