@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
 import Disclaimer from './components/Disclaimer';
@@ -9,6 +9,160 @@ import Instructions from './components/Instructions';
 import TermsOfService from './legal/TermsOfService';
 import PrivacyPolicy from './legal/PrivacyPolicy';
 import './App.css';
+
+// Simple Top 10 Leaderboard Component
+const SimpleLeaderboard: React.FC = () => {
+  const [leaders, setLeaders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const q = query(
+          collection(db, 'runs'),
+          where('status', '==', 'approved')
+        );
+        
+        const snapshot = await getDocs(q);
+        const userStats: { [wallet: string]: any } = {};
+
+        snapshot.forEach((doc) => {
+          const run = doc.data();
+          const wallet = run.wallet;
+          
+          if (!userStats[wallet]) {
+            userStats[wallet] = { 
+              wallet, 
+              totalDistance: 0, 
+              runCount: 0, 
+              totalTokens: 0 
+            };
+          }
+          
+          userStats[wallet].totalDistance += run.distance || 0;
+          userStats[wallet].runCount += 1;
+          userStats[wallet].totalTokens += run.tokens || 0;
+        });
+
+        const leaderboard = Object.values(userStats)
+          .sort((a: any, b: any) => b.totalDistance - a.totalDistance)
+          .slice(0, 10);
+
+        setLeaders(leaderboard);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        setError('Failed to load leaderboard');
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#f8f9fa', borderRadius: '10px', marginTop: '10px' }}>
+        Loading community leaderboard...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '10px', marginTop: '10px' }}>
+        {error}
+      </div>
+    );
+  }
+
+  const getRankEmoji = (index: number) => {
+    switch (index) {
+      case 0: return '🥇';
+      case 1: return '🥈';
+      case 2: return '🥉';
+      default: return `#${index + 1}`;
+    }
+  };
+
+  return (
+    <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '10px', marginTop: '10px' }}>
+      <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>
+        Community Top 10
+      </h3>
+      
+      <div style={{ 
+        backgroundColor: '#d1ecf1', 
+        padding: '12px', 
+        borderRadius: '8px', 
+        marginBottom: '15px', 
+        fontSize: '12px',
+        border: '1px solid #bee5eb'
+      }}>
+        <strong>Health First:</strong> This celebrates consistent, moderate movement. 
+        Remember to take rest days and listen to your body. Sustainable activity is the goal.
+      </div>
+
+      {leaders.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '30px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          color: '#666'
+        }}>
+          No approved activities yet. Be the first to validate your movement!
+        </div>
+      ) : (
+        <div style={{ backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+          {leaders.map((leader, index) => (
+            <div 
+              key={leader.wallet} 
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 15px', 
+                borderBottom: index < leaders.length - 1 ? '1px solid #dee2e6' : 'none',
+                backgroundColor: index < 3 ? '#f8f9fa' : 'white'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '16px', minWidth: '30px' }}>
+                  {getRankEmoji(index)}
+                </span>
+                <span style={{ fontWeight: 'bold' }}>
+                  {leader.wallet.substring(0, 6)}...{leader.wallet.substring(leader.wallet.length - 4)}
+                </span>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '14px' }}>
+                <div style={{ fontWeight: 'bold', color: '#17a2b8' }}>
+                  {leader.totalDistance.toFixed(1)} miles
+                </div>
+                <div style={{ fontSize: '11px', color: '#666' }}>
+                  {leader.runCount} runs • {leader.totalTokens} FYTS
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{
+        marginTop: '15px',
+        padding: '10px',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        fontSize: '12px',
+        color: '#666',
+        textAlign: 'center'
+      }}>
+        Showing top 10 validators by total approved distance • Updated in real-time
+      </div>
+    </div>
+  );
+};
 
 const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
@@ -21,6 +175,7 @@ const MainApp: React.FC = () => {
   const [movementCount, setMovementCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
@@ -99,6 +254,7 @@ const MainApp: React.FC = () => {
     lastPosRef.current = null;
     startTime.current = new Date();
     setShowHistory(false);
+    setShowLeaderboard(false);
     setShowInstructions(false);
 
     if (!('geolocation' in navigator)) {
@@ -211,6 +367,7 @@ const MainApp: React.FC = () => {
       );
       
       setShowHistory(true);
+      setShowLeaderboard(false);
       setShowInstructions(false);
     } catch (error) {
       console.error('Error submitting movement data:', error);
@@ -353,27 +510,55 @@ const MainApp: React.FC = () => {
               Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
             </div>
             
-            <button 
-              onClick={() => setShowHistory(!showHistory)}
-              style={{ 
-                padding: '10px 20px',
-                fontSize: '14px',
-                backgroundColor: showHistory ? '#28a745' : '#17a2b8',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              {showHistory ? 'Hide' : 'Show'} Validation History
-            </button>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '8px',
+              marginBottom: '10px'
+            }}>
+              <button 
+                onClick={() => {
+                  setShowHistory(!showHistory);
+                  if (!showHistory) setShowLeaderboard(false);
+                }}
+                style={{ 
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  backgroundColor: showHistory ? '#28a745' : '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                {showHistory ? 'Hide' : 'My'} History
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setShowLeaderboard(!showLeaderboard);
+                  if (!showLeaderboard) setShowHistory(false);
+                }}
+                style={{ 
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  backgroundColor: showLeaderboard ? '#28a745' : '#fd7e14',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                {showLeaderboard ? 'Hide' : 'Top 10'}
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {showInstructions && wallet && !tracking && !showHistory && <Instructions />}
+      {showInstructions && wallet && !tracking && !showHistory && !showLeaderboard && <Instructions />}
       {showHistory && wallet && <RunHistory wallet={wallet} />}
+      {showLeaderboard && <SimpleLeaderboard />}
 
       <div style={{ 
         padding: '20px', 
