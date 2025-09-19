@@ -164,6 +164,207 @@ const SimpleLeaderboard: React.FC = () => {
   );
 };
 
+// Landing Page Content Component (shown when no wallet connected)
+const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWallet }) => {
+  return (
+    <div style={{ lineHeight: '1.6' }}>
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <div style={{
+          backgroundColor: '#e8f5e8',
+          padding: '15px',
+          borderRadius: '8px',
+          border: '2px solid #4CAF50',
+          marginBottom: '20px'
+        }}>
+          <strong>Health First Approach:</strong> Sustainable, moderate movement validation 
+          with built-in safety limits to prevent overexertion and promote long-term wellness.
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2 style={{ color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px' }}>
+          How FYTS Works
+        </h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
+          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px' }}>
+            <h3 style={{ color: '#007bff', margin: '0 0 10px 0' }}>1. Connect Wallet</h3>
+            <p style={{ margin: '0', fontSize: '14px' }}>
+              Enter your Polygon wallet address to participate in the validation network. 
+              No private keys required - just your public address.
+            </p>
+          </div>
+          
+          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px' }}>
+            <h3 style={{ color: '#28a745', margin: '0 0 10px 0' }}>2. Track Movement</h3>
+            <p style={{ margin: '0', fontSize: '14px' }}>
+              Use GPS tracking to validate your physical movement. The protocol 
+              verifies distance and prevents cheating through multiple validation checks.
+            </p>
+          </div>
+          
+          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px' }}>
+            <h3 style={{ color: '#fd7e14', margin: '0 0 10px 0' }}>3. Earn Tokens</h3>
+            <p style={{ margin: '0', fontSize: '14px' }}>
+              Approved activities receive FYTS tokens (1 token per mile completed).
+              Tokens are distributed within 3-5 business days after approval.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Health Guidelines */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2 style={{ color: '#dc3545', borderBottom: '2px solid #dc3545', paddingBottom: '10px' }}>
+          Health & Safety Guidelines
+        </h2>
+        
+        <div style={{ 
+          backgroundColor: '#fff3cd', 
+          padding: '20px', 
+          borderRadius: '10px',
+          border: '1px solid #ffeaa7'
+        }}>
+          <h3 style={{ margin: '0 0 15px 0', color: '#856404' }}>
+            Daily Safety Limits (For Your Protection)
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', color: '#495057' }}>Activity Frequency</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
+                <li>Maximum 2 validation sessions per day</li>
+                <li>Rest days strongly encouraged</li>
+                <li>No consecutive high-intensity days</li>
+              </ul>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', color: '#495057' }}>Distance Limits</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
+                <li>Daily maximum: 10 miles (for safety)</li>
+                <li>Beginner recommendation: 1-3 miles</li>
+                <li>Build up distance gradually</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Validation Rules */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2 style={{ color: '#fd7e14', borderBottom: '2px solid #fd7e14', paddingBottom: '10px' }}>
+          Common Rejection Reasons
+        </h2>
+        
+        <div style={{ 
+          backgroundColor: '#ffebee', 
+          padding: '20px', 
+          borderRadius: '10px',
+          border: '1px solid #f44336'
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Safety Violations</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
+                <li>More than 2 activities in one day</li>
+                <li>Exceeding 10-mile daily limit</li>
+                <li>Suspicious speed patterns (too fast)</li>
+                <li>Extremely long duration sessions</li>
+                <li>Back-to-back high-intensity submissions</li>
+              </ul>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Technical Issues</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
+                <li>Poor GPS accuracy (>65m error)</li>
+                <li>Inconsistent location data</li>
+                <li>Too few GPS data points</li>
+                <li>Teleporting or impossible movements</li>
+                <li>Vehicle-speed patterns detected</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Token Information */}
+      <div style={{ marginBottom: '30px' }}>
+        <h2 style={{ color: '#6f42c1', borderBottom: '2px solid #6f42c1', paddingBottom: '10px' }}>
+          FYTS Token Information
+        </h2>
+        
+        <div style={{ 
+          backgroundColor: '#f8f5ff', 
+          padding: '20px', 
+          borderRadius: '10px',
+          border: '1px solid #6f42c1'
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Token Details</h4>
+              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
+                <li>Symbol: FYTS</li>
+                <li>Network: Polygon</li>
+                <li>1 FYTS per mile completed</li>
+                <li>0.5 FYTS for 0.5-0.99 miles</li>
+                <li>Distributed within 3-5 business days</li>
+              </ul>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Important Notice</h4>
+              <div style={{ 
+                padding: '10px', 
+                backgroundColor: '#fff3cd',
+                borderRadius: '5px',
+                fontSize: '13px',
+                color: '#856404'
+              }}>
+                FYTS tokens are utility tokens for network validation only. They are NOT an investment, 
+                NOT securities, and have NO guaranteed monetary value.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Connect Wallet CTA */}
+      <div style={{ 
+        textAlign: 'center', 
+        backgroundColor: '#e8f5e8', 
+        padding: '30px',
+        borderRadius: '15px',
+        border: '2px solid #4CAF50'
+      }}>
+        <h2 style={{ margin: '0 0 15px 0', color: '#2d5a2d' }}>
+          Ready to Start Validating Movement?
+        </h2>
+        <p style={{ margin: '0 0 20px 0', fontSize: '16px', color: '#495057' }}>
+          Connect your Polygon wallet to join the validation network
+        </p>
+        <button
+          onClick={onConnectWallet}
+          style={{
+            padding: '15px 30px',
+            fontSize: '18px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          Connect Wallet & Get Started
+        </button>
+        <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
+          Remember: Your health and safety come first
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [tracking, setTracking] = useState(false);
@@ -428,7 +629,7 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       {showDisclaimer && (
         <Disclaimer 
           wallet={wallet}
@@ -476,35 +677,18 @@ const MainApp: React.FC = () => {
         </Link>
       </div>
 
-      <div style={{ 
-        marginBottom: '20px', 
-        padding: '20px', 
-        backgroundColor: '#f5f5f5',
-        borderRadius: '10px' 
-      }}>
-        {!wallet ? (
-          <>
-            <p style={{ textAlign: 'center', marginBottom: '15px', fontSize: '14px', color: '#666' }}>
-              Connect your Polygon wallet to participate in network validation
-            </p>
-            <button 
-              onClick={connectWallet} 
-              style={{ 
-                padding: '12px 24px',
-                fontSize: '16px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              Connect Wallet Address
-            </button>
-          </>
-        ) : (
-          <div>
+      {/* Show Landing Page Content When No Wallet Connected */}
+      {!wallet ? (
+        <LandingContent onConnectWallet={connectWallet} />
+      ) : (
+        <>
+          {/* Connected Wallet - Show App Interface */}
+          <div style={{ 
+            marginBottom: '20px', 
+            padding: '20px', 
+            backgroundColor: '#f5f5f5',
+            borderRadius: '10px' 
+          }}>
             <div style={{ textAlign: 'center', marginBottom: '15px' }}>
               <span style={{ color: '#28a745' }}>✓ </span>
               Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
@@ -553,103 +737,102 @@ const MainApp: React.FC = () => {
               </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {showInstructions && wallet && !tracking && !showHistory && !showLeaderboard && <Instructions />}
-      {showHistory && wallet && <RunHistory wallet={wallet} />}
-      {showLeaderboard && <SimpleLeaderboard />}
+          {showInstructions && !tracking && !showHistory && !showLeaderboard && <Instructions />}
+          {showHistory && <RunHistory wallet={wallet} />}
+          {showLeaderboard && <SimpleLeaderboard />}
 
-      <div style={{ 
-        padding: '20px', 
-        backgroundColor: tracking ? '#e8ffe8' : '#f5f5f5',
-        borderRadius: '10px',
-        border: tracking ? '2px solid #4CAF50' : '2px solid #ddd'
-      }}>
-        <h2 style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
-          {tracking ? '📡 Validating Movement' : '🔐 Ready to Validate'}
-        </h2>
+          <div style={{ 
+            padding: '20px', 
+            backgroundColor: tracking ? '#e8ffe8' : '#f5f5f5',
+            borderRadius: '10px',
+            border: tracking ? '2px solid #4CAF50' : '2px solid #ddd'
+          }}>
+            <h2 style={{ textAlign: 'center', margin: '0 0 20px 0' }}>
+              {tracking ? '📡 Validating Movement' : '🔐 Ready to Validate'}
+            </h2>
 
-        {!tracking ? (
-          <button
-            onClick={startTracking}
-            disabled={!wallet}
-            style={{
-              padding: '15px 30px',
-              fontSize: '18px',
-              backgroundColor: wallet ? '#4CAF50' : '#ccc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: wallet ? 'pointer' : 'not-allowed',
-              width: '100%'
-            }}
-          >
-            Submit Movement Data
-          </button>
-        ) : (
-          <div>
-            <div style={{ 
-              backgroundColor: 'white', 
-              padding: '15px', 
-              borderRadius: '8px',
-              marginBottom: '15px'
-            }}>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', textAlign: 'center' }}>
-                {distanceMiles.toFixed(3)} mi
-              </div>
-              <div style={{ textAlign: 'center', color: '#666', marginTop: '5px' }}>
-                {formatTime(elapsedTime)} | Pace: {calculatePace()} /mi
-              </div>
-            </div>
-
-            <div style={{ 
-              backgroundColor: '#f0f8ff', 
-              padding: '10px', 
-              borderRadius: '5px',
-              marginBottom: '15px',
-              fontSize: '12px',
-              fontFamily: 'monospace'
-            }}>
-              <div>📊 Data Points: {updateCount} | Validated: {movementCount}</div>
-              <div style={{ marginTop: '5px' }}>🎯 {debugInfo}</div>
-              {currentPosition && (
-                <div style={{ marginTop: '5px', color: '#666' }}>
-                  📍 {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
+            {!tracking ? (
+              <button
+                onClick={startTracking}
+                style={{
+                  padding: '15px 30px',
+                  fontSize: '18px',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                Submit Movement Data
+              </button>
+            ) : (
+              <div>
+                <div style={{ 
+                  backgroundColor: 'white', 
+                  padding: '15px', 
+                  borderRadius: '8px',
+                  marginBottom: '15px'
+                }}>
+                  <div style={{ fontSize: '32px', fontWeight: 'bold', textAlign: 'center' }}>
+                    {distanceMiles.toFixed(3)} mi
+                  </div>
+                  <div style={{ textAlign: 'center', color: '#666', marginTop: '5px' }}>
+                    {formatTime(elapsedTime)} | Pace: {calculatePace()} /mi
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <button
-              onClick={stopTracking}
-              style={{
-                padding: '15px 30px',
-                fontSize: '18px',
-                backgroundColor: '#f44336',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              Complete Validation
-            </button>
+                <div style={{ 
+                  backgroundColor: '#f0f8ff', 
+                  padding: '10px', 
+                  borderRadius: '5px',
+                  marginBottom: '15px',
+                  fontSize: '12px',
+                  fontFamily: 'monospace'
+                }}>
+                  <div>📊 Data Points: {updateCount} | Validated: {movementCount}</div>
+                  <div style={{ marginTop: '5px' }}>🎯 {debugInfo}</div>
+                  {currentPosition && (
+                    <div style={{ marginTop: '5px', color: '#666' }}>
+                      📍 {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={stopTracking}
+                  style={{
+                    padding: '15px 30px',
+                    fontSize: '18px',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  Complete Validation
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div style={{
-        marginTop: '20px',
-        padding: '15px',
-        backgroundColor: '#fff3cd',
-        borderRadius: '5px',
-        fontSize: '12px',
-        textAlign: 'center'
-      }}>
-        <strong>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
-        Not an investment. No monetary value guaranteed.
-      </div>
+          <div style={{
+            marginTop: '20px',
+            padding: '15px',
+            backgroundColor: '#fff3cd',
+            borderRadius: '5px',
+            fontSize: '12px',
+            textAlign: 'center'
+          }}>
+            <strong>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
+            Not an investment. No monetary value guaranteed.
+          </div>
+        </>
+      )}
     </div>
   );
 };
