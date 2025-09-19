@@ -330,8 +330,7 @@ const RunHistory: React.FC<RunHistoryProps> = ({ wallet }) => {
                   padding: '15px',
                   borderBottom: index < runs.length - 1 ? '1px solid #dee2e6' : 'none',
                   fontSize: '14px',
-                  ':hover': { backgroundColor: '#f8f9fa' }
-                }}
+                                 }}
               >
                 <div>
                   <div style={{ fontWeight: 'bold' }}>
