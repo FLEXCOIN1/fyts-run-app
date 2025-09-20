@@ -277,7 +277,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
             <div>
               <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Technical Issues</h4>
               <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
-                <li>Poor GPS accuracy (>65m error)</li>
+                <li>Poor GPS accuracy (&gt;65m error)</li>
                 <li>Inconsistent location data</li>
                 <li>Too few GPS data points</li>
                 <li>Teleporting or impossible movements</li>
