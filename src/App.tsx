@@ -166,19 +166,135 @@ const SimpleLeaderboard: React.FC = () => {
 
 // Landing Page Content Component (shown when no wallet connected)
 const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWallet }) => {
+  const [activeUsers, setActiveUsers] = useState(247); // Simulated active users
+
+  React.useEffect(() => {
+    // Simulate live user count updates
+    const interval = setInterval(() => {
+      setActiveUsers(prev => prev + Math.floor(Math.random() * 3));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div style={{ lineHeight: '1.6' }}>
-      {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <div style={{
-          backgroundColor: '#e8f5e8',
-          padding: '15px',
-          borderRadius: '8px',
-          border: '2px solid #4CAF50',
-          marginBottom: '20px'
+      {/* Hero Section */}
+      <div style={{ 
+        textAlign: 'center', 
+        marginBottom: '40px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '40px 20px',
+        borderRadius: '15px',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <h1 style={{ fontSize: '2.5em', margin: '0 0 10px 0', fontWeight: 'bold' }}>
+            🏃‍♂️ FYTS Protocol
+          </h1>
+          <p style={{ fontSize: '1.2em', margin: '0 0 20px 0', opacity: 0.9 }}>
+            Earn crypto for verified movement • {activeUsers} active validators
+          </p>
+          <div style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            padding: '15px',
+            borderRadius: '10px',
+            backdropFilter: 'blur(10px)',
+            margin: '20px auto',
+            maxWidth: '600px'
+          }}>
+            <strong>🛡️ Health First Approach:</strong> Sustainable movement validation 
+            with built-in safety limits to prevent overexertion and promote long-term wellness.
+          </div>
+        </div>
+      </div>
+
+      {/* Social Media Section */}
+      <div style={{ 
+        textAlign: 'center', 
+        marginBottom: '40px',
+        backgroundColor: '#f8f9fa',
+        padding: '25px',
+        borderRadius: '15px'
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', color: '#333' }}>🌐 Join Our Community</h3>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+          gap: '15px',
+          maxWidth: '500px',
+          margin: '0 auto'
         }}>
-          <strong>Health First Approach:</strong> Sustainable, moderate movement validation 
-          with built-in safety limits to prevent overexertion and promote long-term wellness.
+          <a 
+            href="https://www.instagram.com/fyts_cj?igsh=NTc4MTIwNjQ2YQ%3D%3D&utm_source=qr" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 20px',
+              backgroundColor: '#E4405F',
+              color: 'white',
+              borderRadius: '25px',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              gap: '8px',
+              transition: 'transform 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            📷 Instagram
+          </a>
+          <a 
+            href="https://x.com/getFyts" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 20px',
+              backgroundColor: '#1DA1F2',
+              color: 'white',
+              borderRadius: '25px',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              gap: '8px',
+              transition: 'transform 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            🐦 Twitter/X
+          </a>
+          <a 
+            href="https://t.me/+4AdDVbCTfcxmZGEx" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 20px',
+              backgroundColor: '#0088cc',
+              color: 'white',
+              borderRadius: '25px',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              gap: '8px',
+              transition: 'transform 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            💬 Telegram
+          </a>
         </div>
       </div>
 
