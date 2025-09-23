@@ -10,6 +10,278 @@ import TermsOfService from './legal/TermsOfService';
 import PrivacyPolicy from './legal/PrivacyPolicy';
 import './App.css';
 
+// Contract configuration
+const FYTS_CONTRACT_ADDRESS = '0xA6bBa6f5966Af3B9614B1828A024C473C98E4Ce4';
+const FYTS_ABI = [
+  "function getCurrentRewardRate() view returns (uint256)",
+  "function getBurnStats() view returns (uint256 burned, uint256 remaining, uint256 burnPercentage)",
+  "function getHalvingInfo() view returns (uint256 currentPeriod, uint256 currentRate, uint256 nextHalvingIn, uint256 totalHalvings)",
+  "function getUserRewardMultiplier(address user) view returns (uint256)",
+  "function timeUntilNextBurn() view returns (uint256)",
+  "function totalStaked() view returns (uint256)",
+  "function stakes(address user) view returns (uint256 amount, uint256 stakeTime, bool active)",
+  "function stake(uint256 amount) returns (bool)",
+  "function unstake() returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)"
+];
+
+// Contract interaction hooks
+const useContract = () => {
+  const [contract, setContract] = useState<any>(null);
+  const [provider, setProvider] = useState<any>(null);
+
+  useEffect(() => {
+    const initContract = async () => {
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        try {
+          const { ethers } = await import('ethers');
+          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const contract = new ethers.Contract(FYTS_CONTRACT_ADDRESS, FYTS_ABI, provider);
+          setContract(contract);
+          setProvider(provider);
+        } catch (error) {
+          console.error('Error initializing contract:', error);
+        }
+      }
+    };
+
+    initContract();
+  }, []);
+
+  return { contract, provider };
+};
+
+// Contract data hook
+const useContractData = () => {
+  const { contract } = useContract();
+  const [burnStats, setBurnStats] = useState({ burned: '0', remaining: '0', burnPercentage: '0' });
+  const [halvingInfo, setHalvingInfo] = useState({ currentPeriod: '0', currentRate: '0', nextHalvingIn: '0' });
+  const [nextBurnTime, setNextBurnTime] = useState('0');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchContractData = async () => {
+      if (!contract) return;
+
+      try {
+        const [burnData, halvingData, burnTime] = await Promise.all([
+          contract.getBurnStats(),
+          contract.getHalvingInfo(), 
+          contract.timeUntilNextBurn()
+        ]);
+
+        setBurnStats({
+          burned: burnData[0].toString(),
+          remaining: burnData[1].toString(),
+          burnPercentage: burnData[2].toString()
+        });
+
+        setHalvingInfo({
+          currentPeriod: halvingData[0].toString(),
+          currentRate: halvingData[1].toString(),
+          nextHalvingIn: halvingData[2].toString()
+        });
+
+        setNextBurnTime(burnTime.toString());
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching contract data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchContractData();
+    const interval = setInterval(fetchContractData, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [contract]);
+
+// Staking Interface Component (for connected wallets)
+const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
+  const { contract, provider } = useContract();
+  const [userBalance, setUserBalance] = useState('0');
+  const [stakedAmount, setStakedAmount] = useState('0');
+  const [stakeActive, setStakeActive] = useState(false);
+  const [stakeInput, setStakeInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [multiplier, setMultiplier] = useState('100');
+
+  useEffect(() => {
+    fetchUserData();
+  }, [wallet, contract]);
+
+  const fetchUserData = async () => {
+    if (!contract || !wallet) return;
+
+    try {
+      const [balance, stakeInfo, userMultiplier] = await Promise.all([
+        contract.balanceOf(wallet),
+        contract.stakes(wallet),
+        contract.getUserRewardMultiplier(wallet)
+      ]);
+
+      setUserBalance(balance.toString());
+      setStakedAmount(stakeInfo[0].toString());
+      setStakeActive(stakeInfo[2]);
+      setMultiplier(userMultiplier.toString());
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  const handleStake = async () => {
+    if (!contract || !provider || !stakeInput) return;
+
+    setLoading(true);
+    try {
+      const signer = await provider.getSigner();
+      const contractWithSigner = contract.connect(signer);
+      
+      const amount = parseFloat(stakeInput) * Math.pow(10, 18);
+      const tx = await contractWithSigner.stake(amount.toString());
+      await tx.wait();
+      
+      alert('Staking successful!');
+      setStakeInput('');
+      fetchUserData();
+    } catch (error: any) {
+      alert(`Staking failed: ${error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const handleUnstake = async () => {
+    if (!contract || !provider) return;
+
+    setLoading(true);
+    try {
+      const signer = await provider.getSigner();
+      const contractWithSigner = contract.connect(signer);
+      
+      const tx = await contractWithSigner.unstake();
+      await tx.wait();
+      
+      alert('Unstaking successful!');
+      fetchUserData();
+    } catch (error: any) {
+      alert(`Unstaking failed: ${error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const formatTokenAmount = (wei: string) => {
+    return (parseFloat(wei) / Math.pow(10, 18)).toFixed(2);
+  };
+
+  const getMultiplierText = () => {
+    const mult = parseInt(multiplier);
+    if (mult >= 200) return '2x (Elite)';
+    if (mult >= 150) return '1.5x (Premium)';
+    if (mult >= 100) return '1x (Basic)';
+    return 'Not eligible';
+  };
+
+  return (
+    <div style={{
+      backgroundColor: '#f8f9fa',
+      padding: '20px',
+      borderRadius: '10px',
+      marginTop: '20px'
+    }}>
+      <h3 style={{ textAlign: 'center', marginBottom: '20px', color: '#2c3e50' }}>
+        🔒 FYTS Staking Interface
+      </h3>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+        <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#3498db' }}>Your Balance</div>
+          <div style={{ fontSize: '1.5em', margin: '5px 0' }}>{formatTokenAmount(userBalance)} FYTS</div>
+        </div>
+        
+        <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#e74c3c' }}>Staked Amount</div>
+          <div style={{ fontSize: '1.5em', margin: '5px 0' }}>{formatTokenAmount(stakedAmount)} FYTS</div>
+        </div>
+
+        <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#f39c12' }}>Reward Multiplier</div>
+          <div style={{ fontSize: '1.5em', margin: '5px 0' }}>{getMultiplierText()}</div>
+        </div>
+      </div>
+
+      {!stakeActive ? (
+        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px' }}>
+          <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Stake FYTS Tokens</h4>
+          <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+            Minimum stake: 25 FYTS. Higher stakes unlock reward multipliers.
+          </p>
+          
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+            <input
+              type="number"
+              placeholder="Amount to stake"
+              value={stakeInput}
+              onChange={(e) => setStakeInput(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '5px',
+                fontSize: '16px'
+              }}
+              min="25"
+              step="1"
+            />
+            <button
+              onClick={handleStake}
+              disabled={loading || !stakeInput || parseFloat(stakeInput) < 25}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: loading ? '#ccc' : '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              {loading ? 'Staking...' : 'Stake'}
+            </button>
+          </div>
+
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            • 25-499 FYTS: 1x rewards • 500-999 FYTS: 1.5x rewards • 1000+ FYTS: 2x rewards
+          </div>
+        </div>
+      ) : (
+        <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px' }}>
+          <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Active Stake</h4>
+          <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+            You have {formatTokenAmount(stakedAmount)} FYTS staked with {getMultiplierText()} rewards.
+          </p>
+          
+          <button
+            onClick={handleUnstake}
+            disabled={loading}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: loading ? '#ccc' : '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            {loading ? 'Unstaking...' : 'Unstake All'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Simple Top 10 Leaderboard Component
 const SimpleLeaderboard: React.FC = () => {
   const [leaders, setLeaders] = useState<any[]>([]);
@@ -167,6 +439,8 @@ const SimpleLeaderboard: React.FC = () => {
 // Landing Page Content Component (shown when no wallet connected)
 const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWallet }) => {
   const [activeUsers, setActiveUsers] = useState(247); // Simulated active users
+  const [activeTab, setActiveTab] = useState('overview'); // Tab state
+  const { burnStats, halvingInfo, nextBurnTime, loading } = useContractData();
 
   React.useEffect(() => {
     // Simulate live user count updates
@@ -175,6 +449,39 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const formatTime = (seconds: string) => {
+    const secs = parseInt(seconds);
+    if (secs === 0) return 'Ready now';
+    const days = Math.floor(secs / 86400);
+    const hours = Math.floor((secs % 86400) / 3600);
+    const minutes = Math.floor((secs % 3600) / 60);
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  const formatTokenAmount = (wei: string) => {
+    try {
+      const num = parseFloat(wei) / Math.pow(10, 18);
+      if (num > 1000000) return `${(num / 1000000).toFixed(1)}M`;
+      if (num > 1000) return `${(num / 1000).toFixed(1)}K`;
+      return num.toFixed(2);
+    } catch {
+      return '0';
+    }
+  };
+
+  const getCurrentPeriodInfo = () => {
+    const period = parseInt(halvingInfo.currentPeriod);
+    switch (period) {
+      case 0: return { period: 'Months 1-6', rate: '1.0 FYTS', color: 'rgba(46, 204, 113, 0.9)' };
+      case 1: return { period: 'Months 7-12', rate: '0.5 FYTS', color: 'rgba(241, 196, 15, 0.9)' };
+      case 2: return { period: 'Months 13-18', rate: '0.25 FYTS', color: 'rgba(230, 126, 34, 0.9)' };
+      default: return { period: 'Month 19+', rate: '0.125 FYTS', color: 'rgba(155, 89, 182, 0.9)' };
+    }
+  };
 
   return (
     <div style={{ lineHeight: '1.6' }}>
@@ -298,184 +605,582 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       </div>
 
-      {/* How It Works */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#2c3e50', borderBottom: '2px solid #3498db', paddingBottom: '10px' }}>
-          How FYTS Works
-        </h2>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
-          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#007bff', margin: '0 0 10px 0' }}>1. Connect Wallet</h3>
-            <p style={{ margin: '0', fontSize: '14px' }}>
-              Enter your Polygon wallet address to participate in the validation network. 
-              No private keys required - just your public address.
-            </p>
-          </div>
+      {/* Tab Navigation */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        marginBottom: '30px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '15px',
+        padding: '5px',
+        flexWrap: 'wrap',
+        gap: '5px'
+      }}>
+        {[
+          { id: 'overview', label: '⚡ How It Works', icon: '⚡' },
+          { id: 'safety', label: '🛡️ Safety Rules', icon: '🛡️' },
+          { id: 'tokenomics', label: '💰 Tokenomics', icon: '💰' },
+          { id: 'halving', label: '📉 Halving Events', icon: '📉' },
+          { id: 'staking', label: '🔒 Staking Info', icon: '🔒' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              borderRadius: '10px',
+              backgroundColor: activeTab === tab.id ? '#667eea' : 'transparent',
+              color: activeTab === tab.id ? 'white' : '#666',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              transition: 'all 0.3s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ 
+            color: '#2c3e50', 
+            borderBottom: '3px solid #3498db', 
+            paddingBottom: '15px',
+            textAlign: 'center',
+            fontSize: '2em',
+            margin: '0 0 30px 0'
+          }}>
+            How FYTS Works
+          </h2>
           
-          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#28a745', margin: '0 0 10px 0' }}>2. Track Movement</h3>
-            <p style={{ margin: '0', fontSize: '14px' }}>
-              Use GPS tracking to validate your physical movement. The protocol 
-              verifies distance and prevents cheating through multiple validation checks.
-            </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginTop: '20px' }}>
+            <div style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '25px', 
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+              transform: 'translateY(0)',
+              transition: 'transform 0.3s ease'
+            }}>
+              <div style={{ fontSize: '3em', marginBottom: '15px', textAlign: 'center' }}>🔗</div>
+              <h3 style={{ margin: '0 0 15px 0', textAlign: 'center', fontSize: '1.3em' }}>
+                1. Connect Wallet
+              </h3>
+              <p style={{ margin: '0', fontSize: '14px', textAlign: 'center', opacity: 0.9 }}>
+                Enter your Polygon wallet address to join the validation network. 
+                Secure & simple - no private keys needed.
+              </p>
+            </div>
+            
+            <div style={{ 
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              color: 'white',
+              padding: '25px', 
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(240, 147, 251, 0.3)',
+              transform: 'translateY(0)',
+              transition: 'transform 0.3s ease'
+            }}>
+              <div style={{ fontSize: '3em', marginBottom: '15px', textAlign: 'center' }}>📍</div>
+              <h3 style={{ margin: '0 0 15px 0', textAlign: 'center', fontSize: '1.3em' }}>
+                2. Track Movement
+              </h3>
+              <p style={{ margin: '0', fontSize: '14px', textAlign: 'center', opacity: 0.9 }}>
+                GPS validates your real movement with multiple verification checks. 
+                Anti-cheat technology ensures fairness.
+              </p>
+            </div>
+            
+            <div style={{ 
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              color: 'white',
+              padding: '25px', 
+              borderRadius: '15px',
+              boxShadow: '0 8px 25px rgba(79, 172, 254, 0.3)',
+              transform: 'translateY(0)',
+              transition: 'transform 0.3s ease'
+            }}>
+              <div style={{ fontSize: '3em', marginBottom: '15px', textAlign: 'center' }}>💰</div>
+              <h3 style={{ margin: '0 0 15px 0', textAlign: 'center', fontSize: '1.3em' }}>
+                3. Earn FYTS
+              </h3>
+              <p style={{ margin: '0', fontSize: '14px', textAlign: 'center', opacity: 0.9 }}>
+                Get 1 FYTS per mile completed after validation. 
+                Tokens distributed within 3-5 business days.
+              </p>
+            </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'safety' && (
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ 
+            color: '#e74c3c', 
+            borderBottom: '3px solid #e74c3c', 
+            paddingBottom: '15px',
+            textAlign: 'center',
+            fontSize: '2em',
+            margin: '0 0 30px 0'
+          }}>
+            Health & Safety First
+          </h2>
           
-          <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#fd7e14', margin: '0 0 10px 0' }}>3. Earn Tokens</h3>
-            <p style={{ margin: '0', fontSize: '14px' }}>
-              Approved activities receive FYTS tokens (1 token per mile completed).
-              Tokens are distributed within 3-5 business days after approval.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Health Guidelines */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#dc3545', borderBottom: '2px solid #dc3545', paddingBottom: '10px' }}>
-          Health & Safety Guidelines
-        </h2>
-        
-        <div style={{ 
-          backgroundColor: '#fff3cd', 
-          padding: '20px', 
-          borderRadius: '10px',
-          border: '1px solid #ffeaa7'
-        }}>
-          <h3 style={{ margin: '0 0 15px 0', color: '#856404' }}>
-            Daily Safety Limits (For Your Protection)
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-            <div>
-              <h4 style={{ margin: '0 0 8px 0', color: '#495057' }}>Activity Frequency</h4>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
-                <li>Maximum 2 validation sessions per day</li>
-                <li>Rest days strongly encouraged</li>
-                <li>No consecutive high-intensity days</li>
-              </ul>
+          <div style={{ 
+            background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+            padding: '30px', 
+            borderRadius: '20px',
+            boxShadow: '0 8px 25px rgba(252, 182, 159, 0.3)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '4em', margin: '0 0 10px 0' }}>⚠️</div>
+              <h3 style={{ margin: '0 0 15px 0', color: '#d35400', fontSize: '1.5em' }}>
+                Daily Safety Limits (For Your Protection)
+              </h3>
             </div>
-            <div>
-              <h4 style={{ margin: '0 0 8px 0', color: '#495057' }}>Distance Limits</h4>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
-                <li>Daily maximum: 10 miles (for safety)</li>
-                <li>Beginner recommendation: 1-3 miles</li>
-                <li>Build up distance gradually</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Validation Rules */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#fd7e14', borderBottom: '2px solid #fd7e14', paddingBottom: '10px' }}>
-          Common Rejection Reasons
-        </h2>
-        
-        <div style={{ 
-          backgroundColor: '#ffebee', 
-          padding: '20px', 
-          borderRadius: '10px',
-          border: '1px solid #f44336'
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-            <div>
-              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Safety Violations</h4>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
-                <li>More than 2 activities in one day</li>
-                <li>Exceeding 10-mile daily limit</li>
-                <li>Suspicious speed patterns (too fast)</li>
-                <li>Extremely long duration sessions</li>
-                <li>Back-to-back high-intensity submissions</li>
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Technical Issues</h4>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
-                <li>Poor GPS accuracy (&gt;65m error)</li>
-                <li>Inconsistent location data</li>
-                <li>Too few GPS data points</li>
-                <li>Teleporting or impossible movements</li>
-                <li>Vehicle-speed patterns detected</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Token Information */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#6f42c1', borderBottom: '2px solid #6f42c1', paddingBottom: '10px' }}>
-          FYTS Token Information
-        </h2>
-        
-        <div style={{ 
-          backgroundColor: '#f8f5ff', 
-          padding: '20px', 
-          borderRadius: '10px',
-          border: '1px solid #6f42c1'
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-            <div>
-              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Token Details</h4>
-              <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px' }}>
-                <li>Symbol: FYTS</li>
-                <li>Network: Polygon</li>
-                <li>1 FYTS per mile completed</li>
-                <li>0.5 FYTS for 0.5-0.99 miles</li>
-                <li>Distributed within 3-5 business days</li>
-              </ul>
-            </div>
-            <div>
-              <h4 style={{ margin: '0 0 10px 0', color: '#495057' }}>Important Notice</h4>
-              <div style={{ 
-                padding: '10px', 
-                backgroundColor: '#fff3cd',
-                borderRadius: '5px',
-                fontSize: '13px',
-                color: '#856404'
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+              <div style={{
+                backgroundColor: 'rgba(255,255,255,0.8)',
+                padding: '20px',
+                borderRadius: '15px',
+                backdropFilter: 'blur(10px)'
               }}>
-                FYTS tokens are utility tokens for network validation only. They are NOT an investment, 
-                NOT securities, and have NO guaranteed monetary value.
+                <div style={{ fontSize: '2em', textAlign: 'center', marginBottom: '10px' }}>📅</div>
+                <h4 style={{ margin: '0 0 12px 0', color: '#2c3e50', textAlign: 'center' }}>Activity Frequency</h4>
+                <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', color: '#34495e' }}>
+                  <li>Maximum 2 validation sessions per day</li>
+                  <li>Rest days strongly encouraged</li>
+                  <li>No consecutive high-intensity days</li>
+                </ul>
+              </div>
+              <div style={{
+                backgroundColor: 'rgba(255,255,255,0.8)',
+                padding: '20px',
+                borderRadius: '15px',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <div style={{ fontSize: '2em', textAlign: 'center', marginBottom: '10px' }}>📏</div>
+                <h4 style={{ margin: '0 0 12px 0', color: '#2c3e50', textAlign: 'center' }}>Distance Limits</h4>
+                <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', color: '#34495e' }}>
+                  <li>Daily maximum: 10 miles (for safety)</li>
+                  <li>Beginner recommendation: 1-3 miles</li>
+                  <li>Build up distance gradually</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ 
+              backgroundColor: '#ffebee', 
+              padding: '20px', 
+              borderRadius: '10px',
+              border: '1px solid #f44336',
+              marginTop: '20px'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#495057', textAlign: 'center' }}>Common Rejection Reasons</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+                <div>
+                  <strong style={{ color: '#e74c3c' }}>Safety Violations:</strong>
+                  <ul style={{ margin: '5px 0 0 0', paddingLeft: '20px', fontSize: '13px' }}>
+                    <li>More than 2 activities in one day</li>
+                    <li>Exceeding 10-mile daily limit</li>
+                    <li>Suspicious speed patterns</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong style={{ color: '#e74c3c' }}>Technical Issues:</strong>
+                  <ul style={{ margin: '5px 0 0 0', paddingLeft: '20px', fontSize: '13px' }}>
+                    <li>Poor GPS accuracy (&gt;65m error)</li>
+                    <li>Inconsistent location data</li>
+                    <li>Vehicle-speed patterns detected</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'tokenomics' && (
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ 
+            color: '#6f42c1', 
+            borderBottom: '3px solid #6f42c1', 
+            paddingBottom: '15px',
+            textAlign: 'center',
+            fontSize: '2em',
+            margin: '0 0 30px 0'
+          }}>
+            Live FYTS Token Data
+          </h2>
+          
+          <div style={{ 
+            background: 'linear-gradient(135deg, #f8f5ff 0%, #e8d5ff 100%)',
+            padding: '30px', 
+            borderRadius: '20px',
+            boxShadow: '0 8px 25px rgba(111, 66, 193, 0.3)'
+          }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                Loading live contract data...
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '25px' }}>
+                  <div style={{
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    padding: '25px',
+                    borderRadius: '15px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '3em', marginBottom: '15px' }}>🔥</div>
+                    <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Burn Statistics</h4>
+                    <div style={{ fontSize: '14px', color: '#34495e' }}>
+                      <div style={{ marginBottom: '8px' }}><strong>Total Burned:</strong> {formatTokenAmount(burnStats.burned)} FYTS</div>
+                      <div style={{ marginBottom: '8px' }}><strong>Remaining:</strong> {formatTokenAmount(burnStats.remaining)} FYTS</div>
+                      <div style={{ marginBottom: '8px' }}><strong>Burned %:</strong> {(parseInt(burnStats.burnPercentage) / 100).toFixed(2)}%</div>
+                      <div><strong>Next Burn:</strong> {formatTime(nextBurnTime)}</div>
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    padding: '25px',
+                    borderRadius: '15px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '3em', marginBottom: '15px' }}>📉</div>
+                    <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Current Halving Period</h4>
+                    <div style={{ fontSize: '14px', color: '#34495e' }}>
+                      <div style={{ marginBottom: '8px' }}><strong>Period:</strong> {getCurrentPeriodInfo().period}</div>
+                      <div style={{ marginBottom: '8px' }}><strong>Rate:</strong> {getCurrentPeriodInfo().rate} per mile</div>
+                      <div style={{ marginBottom: '8px' }}><strong>Next Halving:</strong> {formatTime(halvingInfo.nextHalvingIn)}</div>
+                      <div><strong>Total Halvings:</strong> {halvingInfo.currentPeriod}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  backgroundColor: 'rgba(255,255,255,0.8)',
+                  padding: '20px',
+                  borderRadius: '15px',
+                  marginTop: '25px',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Token Contract</h4>
+                  <div style={{ fontSize: '12px', color: '#666', fontFamily: 'monospace' }}>
+                    {FYTS_CONTRACT_ADDRESS}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#999', marginTop: '5px' }}>
+                    Polygon Network • Live data updated every 30 seconds
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: 'rgba(255,255,255,0.8)',
+              borderRadius: '15px',
+              fontSize: '13px',
+              color: '#856404',
+              textAlign: 'center',
+              marginTop: '20px'
+            }}>
+              <strong>Important Notice:</strong> FYTS tokens are utility tokens for network validation only. 
+              They are NOT an investment, NOT securities, and have NO guaranteed monetary value.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'halving' && (
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ 
+            color: '#f39c12', 
+            borderBottom: '3px solid #f39c12', 
+            paddingBottom: '15px',
+            textAlign: 'center',
+            fontSize: '2em',
+            margin: '0 0 30px 0'
+          }}>
+            Halving Events Schedule
+          </h2>
+          
+          <div style={{ 
+            background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+            padding: '30px', 
+            borderRadius: '20px',
+            boxShadow: '0 8px 25px rgba(243, 156, 18, 0.3)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '4em', margin: '0 0 10px 0' }}>📉</div>
+              <h3 style={{ margin: '0 0 15px 0', color: '#d35400', fontSize: '1.5em' }}>
+                Bitcoin-Style Halving Model
+              </h3>
+              <p style={{ color: '#8b4513', fontSize: '16px', margin: 0 }}>
+                Rewards decrease every 6 months - Early adopters get massive advantage!
+              </p>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+              <div style={{
+                backgroundColor: 'rgba(46, 204, 113, 0.9)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>🥇</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Months 1-6</h4>
+                <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>1.0 FYTS</div>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>per mile</div>
+              </div>
+              
+              <div style={{
+                backgroundColor: 'rgba(241, 196, 15, 0.9)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>🥈</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Months 7-12</h4>
+                <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>0.5 FYTS</div>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>per mile</div>
+              </div>
+              
+              <div style={{
+                backgroundColor: 'rgba(230, 126, 34, 0.9)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>🥉</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Months 13-18</h4>
+                <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>0.25 FYTS</div>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>per mile</div>
+              </div>
+              
+              <div style={{
+                backgroundColor: 'rgba(155, 89, 182, 0.9)',
+                color: 'white',
+                padding: '20px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>📈</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Month 19+</h4>
+                <div style={{ fontSize: '1.8em', fontWeight: 'bold' }}>0.125 FYTS</div>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>per mile</div>
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: 'rgba(231, 76, 60, 0.1)',
+              border: '2px solid #e74c3c',
+              padding: '20px',
+              borderRadius: '15px',
+              marginTop: '25px',
+              textAlign: 'center'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#c0392b' }}>⏰ FOMO Alert!</h4>
+              <p style={{ margin: 0, color: '#2c3e50', fontSize: '14px' }}>
+                The earlier you start, the more FYTS you earn per mile. This creates scarcity and rewards early adopters - 
+                just like Bitcoin halving events that drive massive price increases.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'staking' && (
+        <div style={{ marginBottom: '40px' }}>
+          <h2 style={{ 
+            color: '#2ecc71', 
+            borderBottom: '3px solid #2ecc71', 
+            paddingBottom: '15px',
+            textAlign: 'center',
+            fontSize: '2em',
+            margin: '0 0 30px 0'
+          }}>
+            Staking Requirements & Rewards
+          </h2>
+          
+          <div style={{ 
+            background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+            padding: '30px', 
+            borderRadius: '20px',
+            boxShadow: '0 8px 25px rgba(46, 204, 113, 0.3)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '4em', margin: '0 0 10px 0' }}>🔒</div>
+              <h3 style={{ margin: '0 0 15px 0', color: '#27ae60', fontSize: '1.5em' }}>
+                Stake to Earn - Higher Stakes, Higher Rewards
+              </h3>
+              <p style={{ color: '#2c3e50', fontSize: '16px', margin: 0 }}>
+                Must stake FYTS tokens to participate in movement validation
+              </p>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+              <div style={{
+                backgroundColor: 'rgba(52, 152, 219, 0.9)',
+                color: 'white',
+                padding: '25px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '15px' }}>🚀</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Entry Level</h4>
+                <div style={{ fontSize: '1.5em', fontWeight: 'bold', marginBottom: '5px' }}>100 FYTS</div>
+                <div style={{ fontSize: '18px', marginBottom: '10px' }}>1x Rewards</div>
+                <div style={{ fontSize: '13px', opacity: 0.9 }}>Minimum to participate in validation</div>
+              </div>
+              
+              <div style={{
+                backgroundColor: 'rgba(155, 89, 182, 0.9)',
+                color: 'white',
+                padding: '25px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '15px' }}>💎</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Premium</h4>
+                <div style={{ fontSize: '1.5em', fontWeight: 'bold', marginBottom: '5px' }}>500 FYTS</div>
+                <div style={{ fontSize: '18px', marginBottom: '10px' }}>1.5x Rewards</div>
+                <div style={{ fontSize: '13px', opacity: 0.9 }}>50% bonus on all earned tokens</div>
+              </div>
+              
+              <div style={{
+                backgroundColor: 'rgba(241, 196, 15, 0.9)',
+                color: 'white',
+                padding: '25px',
+                borderRadius: '15px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5em', marginBottom: '15px' }}>👑</div>
+                <h4 style={{ margin: '0 0 10px 0' }}>Elite</h4>
+                <div style={{ fontSize: '1.5em', fontWeight: 'bold', marginBottom: '5px' }}>1000+ FYTS</div>
+                <div style={{ fontSize: '18px', marginBottom: '10px' }}>2x Rewards</div>
+                <div style={{ fontSize: '13px', opacity: 0.9 }}>Double rewards + governance rights</div>
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: 'rgba(46, 204, 113, 0.1)',
+              border: '2px solid #2ecc71',
+              padding: '20px',
+              borderRadius: '15px',
+              marginTop: '25px'
+            }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#27ae60', textAlign: 'center' }}>💡 Value Creation Mechanics</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5em', marginBottom: '5px' }}>🔐</div>
+                  <strong style={{ color: '#2c3e50' }}>Removes Supply</strong>
+                  <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#7f8c8d' }}>
+                    Staked tokens locked from circulation
+                  </p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5em', marginBottom: '5px' }}>💰</div>
+                  <strong style={{ color: '#2c3e50' }}>Buying Pressure</strong>
+                  <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#7f8c8d' }}>
+                    Need tokens to participate = demand
+                  </p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5em', marginBottom: '5px' }}>🎯</div>
+                  <strong style={{ color: '#2c3e50' }}>Quality Control</strong>
+                  <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#7f8c8d' }}>
+                    Only serious participants can earn
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connect Wallet CTA - Always visible */}
 
       {/* Connect Wallet CTA */}
       <div style={{ 
-        textAlign: 'center', 
-        backgroundColor: '#e8f5e8', 
-        padding: '30px',
-        borderRadius: '15px',
-        border: '2px solid #4CAF50'
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '40px 30px',
+        borderRadius: '20px',
+        boxShadow: '0 10px 30px rgba(102, 126, 234, 0.4)',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <h2 style={{ margin: '0 0 15px 0', color: '#2d5a2d' }}>
-          Ready to Start Validating Movement?
-        </h2>
-        <p style={{ margin: '0 0 20px 0', fontSize: '16px', color: '#495057' }}>
-          Connect your Polygon wallet to join the validation network
-        </p>
-        <button
-          onClick={onConnectWallet}
-          style={{
-            padding: '15px 30px',
-            fontSize: '18px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          Connect Wallet & Get Started
-        </button>
-        <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-          Remember: Your health and safety come first
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{ fontSize: '4em', margin: '0 0 20px 0' }}>🚀</div>
+          <h2 style={{ margin: '0 0 15px 0', fontSize: '2.2em', fontWeight: 'bold' }}>
+            Ready to Start Earning?
+          </h2>
+          <p style={{ margin: '0 0 25px 0', fontSize: '1.1em', opacity: 0.9, maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto' }}>
+            Join {activeUsers}+ validators earning FYTS tokens through verified movement
+          </p>
+          <button
+            onClick={onConnectWallet}
+            style={{
+              padding: '18px 40px',
+              fontSize: '1.2em',
+              background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              boxShadow: '0 8px 25px rgba(255, 107, 107, 0.3)',
+              transition: 'all 0.3s ease',
+              transform: 'translateY(0)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 12px 35px rgba(255, 107, 107, 0.4)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(255, 107, 107, 0.3)';
+            }}
+          >
+            🔗 Connect Wallet & Start Earning
+          </button>
+          <div style={{ marginTop: '20px', fontSize: '14px', opacity: 0.8 }}>
+            💚 Your health and safety come first • Sustainable movement rewards
+          </div>
         </div>
+        {/* Decorative elements */}
+        <div style={{
+          position: 'absolute',
+          top: '-50px',
+          right: '-50px',
+          width: '100px',
+          height: '100px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(255,255,255,0.1)',
+          zIndex: 1
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '-30px',
+          left: '-30px',
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(255,255,255,0.1)',
+          zIndex: 1
+        }}></div>
       </div>
     </div>
   );
@@ -493,6 +1198,7 @@ const MainApp: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showStaking, setShowStaking] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
@@ -812,7 +1518,7 @@ const MainApp: React.FC = () => {
             
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
               gap: '8px',
               marginBottom: '10px'
             }}>
@@ -851,12 +1557,34 @@ const MainApp: React.FC = () => {
               >
                 {showLeaderboard ? 'Hide' : 'Top 10'}
               </button>
+
+              <button 
+                onClick={() => {
+                  setShowStaking(!showStaking);
+                  if (!showStaking) {
+                    setShowHistory(false);
+                    setShowLeaderboard(false);
+                  }
+                }}
+                style={{ 
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  backgroundColor: showStaking ? '#28a745' : '#6f42c1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                {showStaking ? 'Hide' : 'Stake'} FYTS
+              </button>
             </div>
           </div>
 
-          {showInstructions && !tracking && !showHistory && !showLeaderboard && <Instructions />}
+          {showInstructions && !tracking && !showHistory && !showLeaderboard && !showStaking && <Instructions />}
           {showHistory && <RunHistory wallet={wallet} />}
           {showLeaderboard && <SimpleLeaderboard />}
+          {showStaking && <StakingInterface wallet={wallet} />}
 
           <div style={{ 
             padding: '20px', 
