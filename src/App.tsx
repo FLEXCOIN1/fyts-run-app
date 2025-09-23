@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { db } from './firebase';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
@@ -26,7 +26,7 @@ const FYTS_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)"
 ];
 
-// Contract interaction hooks
+// Contract interaction hooks - ETHERS V5 VERSION
 const useContract = () => {
   const [contract, setContract] = useState<any>(null);
   const [provider, setProvider] = useState<any>(null);
@@ -36,7 +36,7 @@ const useContract = () => {
       if (typeof window !== 'undefined' && (window as any).ethereum) {
         try {
           const { ethers } = await import('ethers');
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const provider = new ethers.providers.Web3Provider((window as any).ethereum);
           const contract = new ethers.Contract(FYTS_CONTRACT_ADDRESS, FYTS_ABI, provider);
           setContract(contract);
           setProvider(provider);
@@ -97,6 +97,9 @@ const useContractData = () => {
     return () => clearInterval(interval);
   }, [contract]);
 
+  return { burnStats, halvingInfo, nextBurnTime, loading };
+};
+
 // Staking Interface Component (for connected wallets)
 const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
   const { contract, provider } = useContract();
@@ -107,11 +110,7 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
   const [loading, setLoading] = useState(false);
   const [multiplier, setMultiplier] = useState('100');
 
-  useEffect(() => {
-    fetchUserData();
-  }, [wallet, contract]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!contract || !wallet) return;
 
     try {
@@ -128,14 +127,18 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
-  };
+  }, [contract, wallet]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const handleStake = async () => {
     if (!contract || !provider || !stakeInput) return;
 
     setLoading(true);
     try {
-      const signer = await provider.getSigner();
+      const signer = provider.getSigner();
       const contractWithSigner = contract.connect(signer);
       
       const amount = parseFloat(stakeInput) * Math.pow(10, 18);
@@ -156,7 +159,7 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
 
     setLoading(true);
     try {
-      const signer = await provider.getSigner();
+      const signer = provider.getSigner();
       const contractWithSigner = contract.connect(signer);
       
       const tx = await contractWithSigner.unstake();
@@ -442,7 +445,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
   const [activeTab, setActiveTab] = useState('overview'); // Tab state
   const { burnStats, halvingInfo, nextBurnTime, loading } = useContractData();
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Simulate live user count updates
     const interval = setInterval(() => {
       setActiveUsers(prev => prev + Math.floor(Math.random() * 3));
@@ -450,7 +453,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
     return () => clearInterval(interval);
   }, []);
 
-  const formatTime = (seconds: string) => {
+  const formatTime = useCallback((seconds: string) => {
     const secs = parseInt(seconds);
     if (secs === 0) return 'Ready now';
     const days = Math.floor(secs / 86400);
@@ -460,9 +463,9 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
-  };
+  }, []);
 
-  const formatTokenAmount = (wei: string) => {
+  const formatTokenAmount = useCallback((wei: string) => {
     try {
       const num = parseFloat(wei) / Math.pow(10, 18);
       if (num > 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -471,9 +474,9 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
     } catch {
       return '0';
     }
-  };
+  }, []);
 
-  const getCurrentPeriodInfo = () => {
+  const getCurrentPeriodInfo = useCallback(() => {
     const period = parseInt(halvingInfo.currentPeriod);
     switch (period) {
       case 0: return { period: 'Months 1-6', rate: '1.0 FYTS', color: 'rgba(46, 204, 113, 0.9)' };
@@ -481,7 +484,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
       case 2: return { period: 'Months 13-18', rate: '0.25 FYTS', color: 'rgba(230, 126, 34, 0.9)' };
       default: return { period: 'Month 19+', rate: '0.125 FYTS', color: 'rgba(155, 89, 182, 0.9)' };
     }
-  };
+  }, [halvingInfo.currentPeriod]);
 
   return (
     <div style={{ lineHeight: '1.6' }}>
@@ -1109,8 +1112,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       )}
 
-      {/* Connect Wallet CTA - Always visible */}
-
       {/* Connect Wallet CTA */}
       <div style={{ 
         textAlign: 'center',
@@ -1221,7 +1222,7 @@ const MainApp: React.FC = () => {
     }
   }, [wallet]);
 
-  const haversineMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const haversineMeters = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371000;
     const toRad = (d: number) => (d * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
@@ -1231,7 +1232,7 @@ const MainApp: React.FC = () => {
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  };
+  }, []);
 
   useEffect(() => {
     if (tracking && startTime.current) {
@@ -1246,16 +1247,16 @@ const MainApp: React.FC = () => {
     };
   }, [tracking]);
 
-  const connectWallet = () => {
+  const connectWallet = useCallback(() => {
     const address = prompt('Enter your Polygon wallet address (0x...):');
     if (address && address.startsWith('0x') && address.length === 42) {
       setWallet(address);
     } else {
       alert('Please enter a valid Polygon wallet address');
     }
-  };
+  }, []);
 
-  const startTracking = () => {
+  const startTracking = useCallback(() => {
     if (!wallet) {
       alert('Please connect your wallet first to participate in the validation network');
       return;
@@ -1353,9 +1354,16 @@ const MainApp: React.FC = () => {
         maximumAge: 0
       }
     );
-  };
+  }, [wallet, haversineMeters]);
 
-  const stopTracking = async () => {
+  const formatTime = useCallback((seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, []);
+
+  const stopTracking = useCallback(async () => {
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
@@ -1396,16 +1404,9 @@ const MainApp: React.FC = () => {
       console.error('Error submitting movement data:', error);
       alert('Error submitting movement data. Please try again.');
     }
-  };
+  }, [wallet, elapsedTime, updateCount, movementCount, formatTime]);
 
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const calculatePace = () => {
+  const calculatePace = useCallback(() => {
     if (distanceMiles > 0 && elapsedTime > 0) {
       const pace = elapsedTime / 60 / distanceMiles;
       if (pace > 99) return '--:--';
@@ -1414,16 +1415,16 @@ const MainApp: React.FC = () => {
       return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
     }
     return '--:--';
-  };
+  }, [distanceMiles, elapsedTime]);
 
-  const checkAdminAccess = () => {
+  const checkAdminAccess = useCallback(() => {
     const password = prompt('Enter validation admin password:');
     if (password === 'Fyts123') {
       setIsAdmin(true);
     } else {
       alert('Invalid admin credentials');
     }
-  };
+  }, []);
 
   if (isAdmin) {
     return (
