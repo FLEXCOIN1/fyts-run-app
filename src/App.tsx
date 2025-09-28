@@ -26,43 +26,7 @@ const FYTS_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)"
 ];
 
-// Modern styling constants
-const MODERN_STYLES = {
-  // Base colors
-  bg: 'linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%)',
-  cardBg: 'rgba(255, 255, 255, 0.03)',
-  cardBorder: 'rgba(255, 255, 255, 0.08)',
-  glassEffect: 'rgba(255, 255, 255, 0.05)',
-  
-  // Accent colors  
-  primary: '#00F5FF',
-  secondary: '#FF0080', 
-  success: '#00FF88',
-  warning: '#FFD700',
-  danger: '#FF4757',
-  
-  // Text colors
-  textPrimary: '#E2E8F0',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  
-  // Gradients
-  primaryGradient: 'linear-gradient(135deg, #00F5FF, #FF0080)',
-  successGradient: 'linear-gradient(135deg, #00F5FF, #00FF88)',
-  cardGradient: 'linear-gradient(135deg, #00F5FF, #FF0080, #00FF88)',
-  
-  // Effects
-  boxShadow: '0 20px 40px rgba(0, 245, 255, 0.1)',
-  boxShadowHover: '0 20px 40px rgba(0, 245, 255, 0.2)',
-  backdropFilter: 'blur(20px)',
-  
-  // Borders
-  borderRadius: '20px',
-  borderRadiusLarge: '24px',
-  borderRadiusSmall: '12px',
-};
-
-// Contract interaction hooks - ETHERS V5 VERSION (UNCHANGED)
+// Contract interaction hooks - ETHERS V5 VERSION
 const useContract = () => {
   const [contract, setContract] = useState<any>(null);
   const [provider, setProvider] = useState<any>(null);
@@ -88,7 +52,7 @@ const useContract = () => {
   return { contract, provider };
 };
 
-// Contract data hook (UNCHANGED)
+// Contract data hook
 const useContractData = () => {
   const { contract } = useContract();
   const [burnStats, setBurnStats] = useState({ burned: '0', remaining: '0', burnPercentage: '0' });
@@ -147,7 +111,7 @@ const useContractData = () => {
   return { burnStats, halvingInfo, nextBurnTime, loading };
 };
 
-// Staking Interface Component (FUNCTIONALITY UNCHANGED, STYLING UPDATED)
+// Staking Interface Component
 const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
   const { contract, provider } = useContract();
   const [userBalance, setUserBalance] = useState('0');
@@ -234,10 +198,10 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
 
   return (
     <div style={{
-      background: MODERN_STYLES.cardBg,
-      backdropFilter: MODERN_STYLES.backdropFilter,
-      border: `1px solid ${MODERN_STYLES.cardBorder}`,
-      borderRadius: MODERN_STYLES.borderRadius,
+      background: 'rgba(255, 255, 255, 0.03)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      borderRadius: '20px',
       padding: '32px',
       marginTop: '20px',
       position: 'relative',
@@ -249,13 +213,13 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
         left: 0,
         right: 0,
         height: '1px',
-        background: `linear-gradient(90deg, transparent, ${MODERN_STYLES.primary}, transparent)`
+        background: 'linear-gradient(90deg, transparent, #00F5FF, transparent)'
       }}></div>
       
       <h3 style={{ 
         textAlign: 'center', 
         marginBottom: '24px', 
-        color: MODERN_STYLES.textPrimary,
+        color: '#E2E8F0',
         fontSize: '1.5rem',
         fontWeight: '600'
       }}>
@@ -271,34 +235,34 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.05)', 
           padding: '20px', 
-          borderRadius: MODERN_STYLES.borderRadiusSmall, 
+          borderRadius: '12px', 
           textAlign: 'center',
-          border: `1px solid rgba(255, 255, 255, 0.1)`
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: '500', color: MODERN_STYLES.primary, marginBottom: '8px' }}>Your Balance</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: MODERN_STYLES.textPrimary }}>{formatTokenAmount(userBalance)} FYTS</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#00F5FF', marginBottom: '8px' }}>Your Balance</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#E2E8F0' }}>{formatTokenAmount(userBalance)} FYTS</div>
         </div>
         
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.05)', 
           padding: '20px', 
-          borderRadius: MODERN_STYLES.borderRadiusSmall, 
+          borderRadius: '12px', 
           textAlign: 'center',
-          border: `1px solid rgba(255, 255, 255, 0.1)`
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: '500', color: MODERN_STYLES.secondary, marginBottom: '8px' }}>Staked Amount</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: MODERN_STYLES.textPrimary }}>{formatTokenAmount(stakedAmount)} FYTS</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#FF0080', marginBottom: '8px' }}>Staked Amount</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#E2E8F0' }}>{formatTokenAmount(stakedAmount)} FYTS</div>
         </div>
 
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.05)', 
           padding: '20px', 
-          borderRadius: MODERN_STYLES.borderRadiusSmall, 
+          borderRadius: '12px', 
           textAlign: 'center',
-          border: `1px solid rgba(255, 255, 255, 0.1)`
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          <div style={{ fontSize: '0.9rem', fontWeight: '500', color: MODERN_STYLES.warning, marginBottom: '8px' }}>Reward Multiplier</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: MODERN_STYLES.textPrimary }}>{getMultiplierText()}</div>
+          <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#FFD700', marginBottom: '8px' }}>Reward Multiplier</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#E2E8F0' }}>{getMultiplierText()}</div>
         </div>
       </div>
 
@@ -306,11 +270,11 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.02)', 
           padding: '24px', 
-          borderRadius: MODERN_STYLES.borderRadiusSmall,
-          border: `1px solid rgba(255, 255, 255, 0.05)`
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.05)'
         }}>
-          <h4 style={{ margin: '0 0 16px 0', color: MODERN_STYLES.textPrimary, fontSize: '1.1rem' }}>Stake FYTS Tokens</h4>
-          <p style={{ fontSize: '14px', color: MODERN_STYLES.textSecondary, marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 16px 0', color: '#E2E8F0', fontSize: '1.1rem' }}>Stake FYTS Tokens</h4>
+          <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '20px' }}>
             Minimum stake: 25 FYTS. Higher stakes unlock reward multipliers.
           </p>
           
@@ -324,10 +288,10 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
                 flex: 1,
                 padding: '12px 16px',
                 background: 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid rgba(255, 255, 255, 0.1)`,
-                borderRadius: MODERN_STYLES.borderRadiusSmall,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
                 fontSize: '16px',
-                color: MODERN_STYLES.textPrimary,
+                color: '#E2E8F0',
                 outline: 'none'
               }}
               min="25"
@@ -338,10 +302,10 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
               disabled={loading || !stakeInput || parseFloat(stakeInput) < 25}
               style={{
                 padding: '12px 24px',
-                background: loading ? 'rgba(255, 255, 255, 0.1)' : MODERN_STYLES.successGradient,
-                color: loading ? MODERN_STYLES.textMuted : '#0F0F23',
+                background: loading ? 'rgba(255, 255, 255, 0.1)' : 'linear-gradient(135deg, #00F5FF, #00FF88)',
+                color: loading ? '#64748B' : '#0F0F23',
                 border: 'none',
-                borderRadius: MODERN_STYLES.borderRadiusSmall,
+                borderRadius: '12px',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 fontWeight: '600',
                 fontSize: '14px',
@@ -352,7 +316,7 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
             </button>
           </div>
 
-          <div style={{ fontSize: '12px', color: MODERN_STYLES.textMuted, textAlign: 'center' }}>
+          <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center' }}>
             • 25-99 FYTS: 1x rewards • 100-299 FYTS: 1.5x rewards • 300+ FYTS: 2x rewards
           </div>
         </div>
@@ -360,11 +324,11 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.02)', 
           padding: '24px', 
-          borderRadius: MODERN_STYLES.borderRadiusSmall,
-          border: `1px solid rgba(255, 255, 255, 0.05)`
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.05)'
         }}>
-          <h4 style={{ margin: '0 0 16px 0', color: MODERN_STYLES.textPrimary, fontSize: '1.1rem' }}>Active Stake</h4>
-          <p style={{ fontSize: '14px', color: MODERN_STYLES.textSecondary, marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 16px 0', color: '#E2E8F0', fontSize: '1.1rem' }}>Active Stake</h4>
+          <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '20px' }}>
             You have {formatTokenAmount(stakedAmount)} FYTS staked with {getMultiplierText()} rewards.
           </p>
           
@@ -373,10 +337,10 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
             disabled={loading}
             style={{
               padding: '12px 24px',
-              background: loading ? 'rgba(255, 255, 255, 0.1)' : MODERN_STYLES.danger,
-              color: loading ? MODERN_STYLES.textMuted : 'white',
+              background: loading ? 'rgba(255, 255, 255, 0.1)' : '#FF4757',
+              color: loading ? '#64748B' : 'white',
               border: 'none',
-              borderRadius: MODERN_STYLES.borderRadiusSmall,
+              borderRadius: '12px',
               cursor: loading ? 'not-allowed' : 'pointer',
               fontWeight: '600',
               fontSize: '14px'
@@ -390,7 +354,7 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
   );
 };
 
-// Simple Top 10 Leaderboard Component (FUNCTIONALITY UNCHANGED, STYLING UPDATED)
+// Simple Top 10 Leaderboard Component
 const SimpleLeaderboard: React.FC = () => {
   const [leaders, setLeaders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -446,12 +410,12 @@ const SimpleLeaderboard: React.FC = () => {
       <div style={{ 
         padding: '32px', 
         textAlign: 'center', 
-        background: MODERN_STYLES.cardBg,
-        backdropFilter: MODERN_STYLES.backdropFilter,
-        border: `1px solid ${MODERN_STYLES.cardBorder}`,
-        borderRadius: MODERN_STYLES.borderRadius, 
+        background: 'rgba(255, 255, 255, 0.03)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '20px', 
         marginTop: '20px',
-        color: MODERN_STYLES.textSecondary
+        color: '#94A3B8'
       }}>
         Loading community leaderboard...
       </div>
@@ -464,10 +428,10 @@ const SimpleLeaderboard: React.FC = () => {
         padding: '32px', 
         textAlign: 'center', 
         background: 'rgba(255, 71, 87, 0.1)',
-        border: `1px solid ${MODERN_STYLES.danger}`,
-        borderRadius: MODERN_STYLES.borderRadius, 
+        border: '1px solid #FF4757',
+        borderRadius: '20px', 
         marginTop: '20px',
-        color: MODERN_STYLES.danger
+        color: '#FF4757'
       }}>
         {error}
       </div>
@@ -485,17 +449,17 @@ const SimpleLeaderboard: React.FC = () => {
 
   return (
     <div style={{ 
-      background: MODERN_STYLES.cardBg,
-      backdropFilter: MODERN_STYLES.backdropFilter,
-      border: `1px solid ${MODERN_STYLES.cardBorder}`,
-      borderRadius: MODERN_STYLES.borderRadius, 
+      background: 'rgba(255, 255, 255, 0.03)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      borderRadius: '20px', 
       padding: '32px', 
       marginTop: '20px' 
     }}>
       <h3 style={{ 
         textAlign: 'center', 
         margin: '0 0 24px 0',
-        color: MODERN_STYLES.textPrimary,
+        color: '#E2E8F0',
         fontSize: '1.5rem',
         fontWeight: '600'
       }}>
@@ -505,13 +469,13 @@ const SimpleLeaderboard: React.FC = () => {
       <div style={{ 
         background: 'rgba(0, 245, 255, 0.05)', 
         padding: '16px', 
-        borderRadius: MODERN_STYLES.borderRadiusSmall, 
+        borderRadius: '12px', 
         marginBottom: '20px', 
         fontSize: '12px',
-        border: `1px solid rgba(0, 245, 255, 0.2)`,
-        color: MODERN_STYLES.textSecondary
+        border: '1px solid rgba(0, 245, 255, 0.2)',
+        color: '#94A3B8'
       }}>
-        <strong style={{ color: MODERN_STYLES.primary }}>Health First:</strong> This celebrates consistent, moderate movement. 
+        <strong style={{ color: '#00F5FF' }}>Health First:</strong> This celebrates consistent, moderate movement. 
         Remember to take rest days and listen to your body. Sustainable activity is the goal.
       </div>
 
@@ -520,17 +484,17 @@ const SimpleLeaderboard: React.FC = () => {
           textAlign: 'center',
           padding: '40px',
           background: 'rgba(255, 255, 255, 0.02)',
-          borderRadius: MODERN_STYLES.borderRadiusSmall,
-          color: MODERN_STYLES.textMuted
+          borderRadius: '12px',
+          color: '#64748B'
         }}>
           No approved activities yet. Be the first to validate your movement!
         </div>
       ) : (
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.02)', 
-          borderRadius: MODERN_STYLES.borderRadiusSmall, 
+          borderRadius: '12px', 
           overflow: 'hidden',
-          border: `1px solid rgba(255, 255, 255, 0.05)`
+          border: '1px solid rgba(255, 255, 255, 0.05)'
         }}>
           {leaders.map((leader, index) => (
             <div 
@@ -540,7 +504,7 @@ const SimpleLeaderboard: React.FC = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '16px 20px', 
-                borderBottom: index < leaders.length - 1 ? `1px solid rgba(255, 255, 255, 0.05)` : 'none',
+                borderBottom: index < leaders.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
                 background: index < 3 ? 'rgba(0, 245, 255, 0.03)' : 'transparent'
               }}
             >
@@ -548,15 +512,15 @@ const SimpleLeaderboard: React.FC = () => {
                 <span style={{ fontSize: '16px', minWidth: '30px' }}>
                   {getRankEmoji(index)}
                 </span>
-                <span style={{ fontWeight: '600', color: MODERN_STYLES.textPrimary }}>
+                <span style={{ fontWeight: '600', color: '#E2E8F0' }}>
                   {leader.wallet.substring(0, 6)}...{leader.wallet.substring(leader.wallet.length - 4)}
                 </span>
               </div>
               <div style={{ textAlign: 'right', fontSize: '14px' }}>
-                <div style={{ fontWeight: '600', color: MODERN_STYLES.primary }}>
+                <div style={{ fontWeight: '600', color: '#00F5FF' }}>
                   {leader.totalDistance.toFixed(1)} miles
                 </div>
-                <div style={{ fontSize: '11px', color: MODERN_STYLES.textMuted }}>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>
                   {leader.runCount} runs • {leader.totalTokens} FYTS
                 </div>
               </div>
@@ -569,9 +533,9 @@ const SimpleLeaderboard: React.FC = () => {
         marginTop: '20px',
         padding: '12px',
         background: 'rgba(255, 255, 255, 0.02)',
-        borderRadius: MODERN_STYLES.borderRadiusSmall,
+        borderRadius: '12px',
         fontSize: '12px',
-        color: MODERN_STYLES.textMuted,
+        color: '#64748B',
         textAlign: 'center'
       }}>
         Showing top 10 validators by total approved distance • Updated in real-time
@@ -580,7 +544,7 @@ const SimpleLeaderboard: React.FC = () => {
   );
 };
 
-// Landing Page Content Component (STYLING UPDATED, FUNCTIONALITY UNCHANGED)
+// Landing Page Content Component
 const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWallet }) => {
   const [activeUsers, setActiveUsers] = useState(34);
   const [activeTab, setActiveTab] = useState('overview');
@@ -619,46 +583,26 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
     }
   }, []);
 
-  const getCurrentPeriodInfo = useCallback(() => {
-    const period = parseInt(halvingInfo.currentPeriod);
-    switch (period) {
-      case 0: return { period: 'Months 1-6', rate: '1.0 FYTS', color: MODERN_STYLES.success };
-      case 1: return { period: 'Months 7-12', rate: '0.5 FYTS', color: MODERN_STYLES.warning };
-      case 2: return { period: 'Months 13-18', rate: '0.25 FYTS', color: MODERN_STYLES.secondary };
-      default: return { period: 'Month 19+', rate: '0.125 FYTS', color: MODERN_STYLES.primary };
-    }
-  }, [halvingInfo.currentPeriod]);
-
   return (
     <div style={{ lineHeight: '1.6' }}>
       {/* Hero Section */}
       <div style={{ 
         textAlign: 'center', 
         marginBottom: '40px',
-        background: MODERN_STYLES.glassEffect,
-        backdropFilter: MODERN_STYLES.backdropFilter,
-        border: `1px solid ${MODERN_STYLES.cardBorder}`,
-        borderRadius: MODERN_STYLES.borderRadiusLarge,
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '24px',
         padding: '48px 32px',
         position: 'relative',
         overflow: 'hidden'
       }}>
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: '-100%',
-          width: '100%',
-          height: '100%',
-          background: `linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.1), transparent)`,
-          animation: 'shimmer 3s infinite'
-        }}></div>
-        
         <div style={{ position: 'relative', zIndex: 2 }}>
           <h1 style={{ 
             fontSize: '3.5rem', 
             margin: '0 0 16px 0', 
             fontWeight: '700',
-            background: MODERN_STYLES.cardGradient,
+            background: 'linear-gradient(135deg, #00F5FF, #FF0080, #00FF88)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
@@ -668,7 +612,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
           <p style={{ 
             fontSize: '1.2rem', 
             margin: '0 0 24px 0', 
-            color: MODERN_STYLES.textSecondary 
+            color: '#94A3B8' 
           }}>
             Transform Movement Into Digital Assets • {activeUsers} active validators
           </p>
@@ -684,12 +628,12 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               <div style={{ 
                 fontSize: '2rem', 
                 fontWeight: '700', 
-                color: MODERN_STYLES.primary,
+                color: '#00F5FF',
                 marginBottom: '4px'
               }}>{activeUsers}</div>
               <div style={{ 
                 fontSize: '0.9rem', 
-                color: MODERN_STYLES.textMuted,
+                color: '#64748B',
                 textTransform: 'uppercase',
                 letterSpacing: '1px'
               }}>Active Validators</div>
@@ -698,12 +642,12 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               <div style={{ 
                 fontSize: '2rem', 
                 fontWeight: '700', 
-                color: MODERN_STYLES.secondary,
+                color: '#FF0080',
                 marginBottom: '4px'
               }}>1,247</div>
               <div style={{ 
                 fontSize: '0.9rem', 
-                color: MODERN_STYLES.textMuted,
+                color: '#64748B',
                 textTransform: 'uppercase',
                 letterSpacing: '1px'
               }}>Miles Validated</div>
@@ -712,12 +656,12 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               <div style={{ 
                 fontSize: '2rem', 
                 fontWeight: '700', 
-                color: MODERN_STYLES.success,
+                color: '#00FF88',
                 marginBottom: '4px'
               }}>$43.2K</div>
               <div style={{ 
                 fontSize: '0.9rem', 
-                color: MODERN_STYLES.textMuted,
+                color: '#64748B',
                 textTransform: 'uppercase',
                 letterSpacing: '1px'
               }}>Market Cap</div>
@@ -730,15 +674,15 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
       <div style={{ 
         textAlign: 'center', 
         marginBottom: '40px',
-        background: MODERN_STYLES.cardBg,
-        backdropFilter: MODERN_STYLES.backdropFilter,
-        border: `1px solid ${MODERN_STYLES.cardBorder}`,
-        borderRadius: MODERN_STYLES.borderRadius,
+        background: 'rgba(255, 255, 255, 0.03)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '20px',
         padding: '32px'
       }}>
         <h3 style={{ 
           margin: '0 0 24px 0', 
-          color: MODERN_STYLES.textPrimary,
+          color: '#E2E8F0',
           fontSize: '1.5rem',
           fontWeight: '600'
         }}>🌐 Join Our Community</h3>
@@ -749,45 +693,72 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
           maxWidth: '600px',
           margin: '0 auto'
         }}>
-          {[
-            { href: "https://www.instagram.com/fyts_cj?igsh=NTc4MTIwNjQ2YQ%3D%3D&utm_source=qr", icon: "📷", label: "Instagram", color: "#E4405F" },
-            { href: "https://x.com/getFyts", icon: "🐦", label: "Twitter/X", color: "#1DA1F2" },
-            { href: "https://t.me/+4AdDVbCTfcxmZGEx", icon: "💬", label: "Telegram", color: "#0088cc" }
-          ].map((social, index) => (
-            <a 
-              key={index}
-              href={social.href}
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '12px 20px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid rgba(255, 255, 255, 0.1)`,
-                borderRadius: MODERN_STYLES.borderRadiusSmall,
-                textDecoration: 'none',
-                fontWeight: '500',
-                fontSize: '14px',
-                gap: '8px',
-                transition: 'all 0.3s ease',
-                color: MODERN_STYLES.textPrimary
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = `rgba(0, 245, 255, 0.1)`;
-                e.currentTarget.style.borderColor = `rgba(0, 245, 255, 0.3)`;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              {social.icon} {social.label}
-            </a>
-          ))}
+          <a 
+            href="https://www.instagram.com/fyts_cj?igsh=NTc4MTIwNjQ2YQ%3D%3D&utm_source=qr"
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 20px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              fontSize: '14px',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              color: '#E2E8F0'
+            }}
+          >
+            📷 Instagram
+          </a>
+          <a 
+            href="https://x.com/getFyts"
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 20px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              fontSize: '14px',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              color: '#E2E8F0'
+            }}
+          >
+            🐦 Twitter/X
+          </a>
+          <a 
+            href="https://t.me/+4AdDVbCTfcxmZGEx"
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 20px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              fontSize: '14px',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              color: '#E2E8F0'
+            }}
+          >
+            💬 Telegram
+          </a>
         </div>
       </div>
 
@@ -796,12 +767,12 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         display: 'flex', 
         justifyContent: 'center', 
         marginBottom: '30px',
-        background: MODERN_STYLES.cardBg,
-        borderRadius: MODERN_STYLES.borderRadius,
+        background: 'rgba(255, 255, 255, 0.03)',
+        borderRadius: '20px',
         padding: '8px',
         flexWrap: 'wrap',
         gap: '4px',
-        border: `1px solid ${MODERN_STYLES.cardBorder}`
+        border: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
         {[
           { id: 'overview', label: '⚡ How It Works' },
@@ -816,9 +787,9 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
             style={{
               padding: '12px 20px',
               border: 'none',
-              borderRadius: MODERN_STYLES.borderRadiusSmall,
-              background: activeTab === tab.id ? MODERN_STYLES.primaryGradient : 'transparent',
-              color: activeTab === tab.id ? '#0F0F23' : MODERN_STYLES.textSecondary,
+              borderRadius: '12px',
+              background: activeTab === tab.id ? 'linear-gradient(135deg, #00F5FF, #FF0080)' : 'transparent',
+              color: activeTab === tab.id ? '#0F0F23' : '#94A3B8',
               cursor: 'pointer',
               fontSize: '14px',
               fontWeight: '500',
@@ -860,26 +831,15 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               }
             ].map((card, index) => (
               <div key={index} style={{ 
-                background: MODERN_STYLES.cardBg,
-                backdropFilter: MODERN_STYLES.backdropFilter,
-                border: `1px solid ${MODERN_STYLES.cardBorder}`,
-                borderRadius: MODERN_STYLES.borderRadius,
+                background: 'rgba(255, 255, 255, 0.03)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '20px',
                 padding: '32px',
                 position: 'relative',
                 overflow: 'hidden',
                 transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.borderColor = 'rgba(0, 245, 255, 0.2)';
-                e.currentTarget.style.boxShadow = MODERN_STYLES.boxShadowHover;
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = MODERN_STYLES.cardBorder;
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-              >
+              }}>
                 <div style={{
                   width: '64px',
                   height: '64px',
@@ -893,7 +853,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
                 }}>{card.icon}</div>
                 <h3 style={{ 
                   margin: '0 0 16px 0', 
-                  color: MODERN_STYLES.textPrimary,
+                  color: '#E2E8F0',
                   fontSize: '1.3rem',
                   fontWeight: '600'
                 }}>
@@ -901,7 +861,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
                 </h3>
                 <p style={{ 
                   margin: '0', 
-                  color: MODERN_STYLES.textSecondary,
+                  color: '#94A3B8',
                   lineHeight: '1.6'
                 }}>
                   {card.desc}
@@ -912,16 +872,13 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       )}
 
-      {/* Continue with other tabs content but with modern styling... */}
-      {/* For brevity, I'll skip the other tabs but they follow the same pattern */}
-
       {/* Connect Wallet CTA */}
       <div style={{ 
         textAlign: 'center',
-        background: MODERN_STYLES.glassEffect,
-        backdropFilter: MODERN_STYLES.backdropFilter,
-        border: `1px solid ${MODERN_STYLES.cardBorder}`,
-        borderRadius: MODERN_STYLES.borderRadiusLarge,
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '24px',
         padding: '48px 32px',
         position: 'relative',
         overflow: 'hidden'
@@ -932,14 +889,14 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
             margin: '0 0 16px 0', 
             fontSize: '2.2rem', 
             fontWeight: '700',
-            color: MODERN_STYLES.textPrimary
+            color: '#E2E8F0'
           }}>
             Ready to Start Earning?
           </h2>
           <p style={{ 
             margin: '0 0 32px 0', 
             fontSize: '1.1rem', 
-            color: MODERN_STYLES.textSecondary,
+            color: '#94A3B8',
             maxWidth: '500px', 
             marginLeft: 'auto', 
             marginRight: 'auto' 
@@ -957,20 +914,11 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               fontSize: '1.1rem',
               fontWeight: '600',
               color: '#0F0F23',
-              background: MODERN_STYLES.successGradient,
+              background: 'linear-gradient(135deg, #00F5FF, #00FF88)',
               border: 'none',
               borderRadius: '50px',
               cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              overflow: 'hidden'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 245, 255, 0.3)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
+              transition: 'all 0.3s ease'
             }}
           >
             🔗 Connect Wallet & Start Earning
@@ -978,7 +926,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
           <div style={{ 
             marginTop: '24px', 
             fontSize: '14px', 
-            color: MODERN_STYLES.textMuted
+            color: '#64748B'
           }}>
             💚 Your health and safety come first • Sustainable movement rewards
           </div>
@@ -1015,7 +963,7 @@ const MainApp: React.FC = () => {
   const MAX_ACCURACY = 65;
   const MAX_SPEED_MPH = 15;
 
-  // Auto-load saved wallet on app start (UNCHANGED)
+  // Auto-load saved wallet on app start
   useEffect(() => {
     const savedWallet = localStorage.getItem('fyts_wallet');
     if (savedWallet && savedWallet.startsWith('0x') && savedWallet.length === 42) {
@@ -1032,7 +980,6 @@ const MainApp: React.FC = () => {
     }
   }, [wallet]);
 
-  // ALL GPS CODE UNCHANGED
   const haversineMeters = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371000;
     const toRad = (d: number) => (d * Math.PI) / 180;
@@ -1074,7 +1021,6 @@ const MainApp: React.FC = () => {
     }
   }, []);
 
-  // ALL GPS TRACKING CODE UNCHANGED
   const startTracking = useCallback(() => {
     if (!wallet) {
       alert('Please connect your wallet first to participate in the validation network');
@@ -1247,7 +1193,7 @@ const MainApp: React.FC = () => {
 
   if (isAdmin) {
     return (
-      <div style={{ background: MODERN_STYLES.bg, minHeight: '100vh' }}>
+      <div style={{ background: 'linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%)', minHeight: '100vh' }}>
         <button 
           onClick={() => setIsAdmin(false)}
           style={{ 
@@ -1255,13 +1201,13 @@ const MainApp: React.FC = () => {
             top: '20px', 
             right: '20px', 
             padding: '12px 24px',
-            background: MODERN_STYLES.cardBg,
-            color: MODERN_STYLES.textPrimary,
-            border: `1px solid ${MODERN_STYLES.cardBorder}`,
-            borderRadius: MODERN_STYLES.borderRadiusSmall,
+            background: 'rgba(255, 255, 255, 0.03)',
+            color: '#E2E8F0',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '12px',
             cursor: 'pointer',
             zIndex: 1000,
-            backdropFilter: MODERN_STYLES.backdropFilter,
+            backdropFilter: 'blur(20px)',
             fontWeight: '500'
           }}
         >
@@ -1274,9 +1220,9 @@ const MainApp: React.FC = () => {
 
   return (
     <div style={{ 
-      background: MODERN_STYLES.bg,
+      background: 'linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%)',
       minHeight: '100vh',
-      color: MODERN_STYLES.textPrimary,
+      color: '#E2E8F0',
       fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
     }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
@@ -1293,7 +1239,7 @@ const MainApp: React.FC = () => {
           marginBottom: '8px',
           fontSize: '2.5rem',
           fontWeight: '700',
-          background: MODERN_STYLES.primaryGradient,
+          background: 'linear-gradient(135deg, #00F5FF, #FF0080)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text'
@@ -1302,7 +1248,7 @@ const MainApp: React.FC = () => {
         </h1>
         <p style={{ 
           textAlign: 'center', 
-          color: MODERN_STYLES.textSecondary, 
+          color: '#94A3B8', 
           marginTop: '0', 
           fontSize: '16px',
           marginBottom: '40px'
@@ -1318,13 +1264,13 @@ const MainApp: React.FC = () => {
             right: '20px',
             padding: '8px 16px',
             fontSize: '12px',
-            background: MODERN_STYLES.cardBg,
-            color: MODERN_STYLES.textMuted,
-            border: `1px solid ${MODERN_STYLES.cardBorder}`,
-            borderRadius: MODERN_STYLES.borderRadiusSmall,
+            background: 'rgba(255, 255, 255, 0.03)',
+            color: '#64748B',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '12px',
             opacity: 0.5,
             cursor: 'pointer',
-            backdropFilter: MODERN_STYLES.backdropFilter
+            backdropFilter: 'blur(20px)'
           }}
         >
           Admin
@@ -1337,14 +1283,14 @@ const MainApp: React.FC = () => {
           fontSize: '12px'
         }}>
           <Link to="/terms" style={{ 
-            color: MODERN_STYLES.textMuted, 
+            color: '#64748B', 
             marginRight: '12px',
             textDecoration: 'none'
           }}>
             Terms of Service
           </Link>
           <Link to="/privacy" style={{ 
-            color: MODERN_STYLES.textMuted,
+            color: '#64748B',
             textDecoration: 'none'
           }}>
             Privacy Policy
@@ -1360,14 +1306,14 @@ const MainApp: React.FC = () => {
             <div style={{ 
               marginBottom: '24px', 
               padding: '24px', 
-              background: MODERN_STYLES.cardBg,
-              backdropFilter: MODERN_STYLES.backdropFilter,
-              border: `1px solid ${MODERN_STYLES.cardBorder}`,
-              borderRadius: MODERN_STYLES.borderRadius
+              background: 'rgba(255, 255, 255, 0.03)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '20px'
             }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <span style={{ color: MODERN_STYLES.success, fontSize: '16px' }}>✓ </span>
-                <span style={{ color: MODERN_STYLES.textPrimary, fontWeight: '500' }}>
+                <span style={{ color: '#00FF88', fontSize: '16px' }}>✓ </span>
+                <span style={{ color: '#E2E8F0', fontWeight: '500' }}>
                   Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
                 </span>
               </div>
@@ -1377,59 +1323,68 @@ const MainApp: React.FC = () => {
                 gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
                 gap: '12px'
               }}>
-                {[
-                  { 
-                    label: showHistory ? 'Hide' : 'My', 
-                    action: 'History',
-                    active: showHistory,
-                    color: MODERN_STYLES.primary,
-                    onClick: () => {
-                      setShowHistory(!showHistory);
-                      if (!showHistory) setShowLeaderboard(false);
+                <button 
+                  onClick={() => {
+                    setShowHistory(!showHistory);
+                    if (!showHistory) setShowLeaderboard(false);
+                  }}
+                  style={{ 
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    background: showHistory ? '#00F5FF' : 'rgba(255, 255, 255, 0.05)',
+                    color: showHistory ? '#0F0F23' : '#E2E8F0',
+                    border: showHistory ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {showHistory ? 'Hide' : 'My'} History
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setShowLeaderboard(!showLeaderboard);
+                    if (!showLeaderboard) setShowHistory(false);
+                  }}
+                  style={{ 
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    background: showLeaderboard ? '#FFD700' : 'rgba(255, 255, 255, 0.05)',
+                    color: showLeaderboard ? '#0F0F23' : '#E2E8F0',
+                    border: showLeaderboard ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {showLeaderboard ? 'Hide' : 'Top'} 10
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setShowStaking(!showStaking);
+                    if (!showStaking) {
+                      setShowHistory(false);
+                      setShowLeaderboard(false);
                     }
-                  },
-                  { 
-                    label: showLeaderboard ? 'Hide' : 'Top', 
-                    action: '10',
-                    active: showLeaderboard,
-                    color: MODERN_STYLES.warning,
-                    onClick: () => {
-                      setShowLeaderboard(!showLeaderboard);
-                      if (!showLeaderboard) setShowHistory(false);
-                    }
-                  },
-                  { 
-                    label: showStaking ? 'Hide' : 'Stake', 
-                    action: 'FYTS',
-                    active: showStaking,
-                    color: MODERN_STYLES.secondary,
-                    onClick: () => {
-                      setShowStaking(!showStaking);
-                      if (!showStaking) {
-                        setShowHistory(false);
-                        setShowLeaderboard(false);
-                      }
-                    }
-                  }
-                ].map((btn, index) => (
-                  <button 
-                    key={index}
-                    onClick={btn.onClick}
-                    style={{ 
-                      padding: '12px 16px',
-                      fontSize: '14px',
-                      background: btn.active ? btn.color : 'rgba(255, 255, 255, 0.05)',
-                      color: btn.active ? '#0F0F23' : MODERN_STYLES.textPrimary,
-                      border: btn.active ? 'none' : `1px solid rgba(255, 255, 255, 0.1)`,
-                      borderRadius: MODERN_STYLES.borderRadiusSmall,
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    {btn.label} {btn.action}
-                  </button>
-                ))}
+                  }}
+                  style={{ 
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    background: showStaking ? '#FF0080' : 'rgba(255, 255, 255, 0.05)',
+                    color: showStaking ? '#0F0F23' : '#E2E8F0',
+                    border: showStaking ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {showStaking ? 'Hide' : 'Stake'} FYTS
+                </button>
               </div>
             </div>
 
@@ -1441,31 +1396,17 @@ const MainApp: React.FC = () => {
             {/* Tracking Interface */}
             <div style={{ 
               padding: '32px', 
-              background: tracking ? 'rgba(0, 255, 136, 0.05)' : MODERN_STYLES.cardBg,
-              backdropFilter: MODERN_STYLES.backdropFilter,
-              borderRadius: MODERN_STYLES.borderRadius,
-              border: tracking ? `2px solid ${MODERN_STYLES.success}` : `1px solid ${MODERN_STYLES.cardBorder}`,
-              position: 'relative',
-              overflow: 'hidden'
+              background: tracking ? 'rgba(0, 255, 136, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              border: tracking ? '2px solid #00FF88' : '1px solid rgba(255, 255, 255, 0.08)'
             }}>
-              {tracking && (
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  background: `linear-gradient(90deg, transparent, ${MODERN_STYLES.success}, transparent)`,
-                  animation: 'shimmer 2s infinite'
-                }}></div>
-              )}
-              
               <h2 style={{ 
                 textAlign: 'center', 
                 margin: '0 0 24px 0',
                 fontSize: '1.5rem',
                 fontWeight: '600',
-                color: MODERN_STYLES.textPrimary
+                color: '#E2E8F0'
               }}>
                 {tracking ? '📡 Validating Movement' : '🔐 Ready to Validate'}
               </h2>
@@ -1476,7 +1417,7 @@ const MainApp: React.FC = () => {
                   style={{
                     padding: '20px 40px',
                     fontSize: '18px',
-                    background: MODERN_STYLES.successGradient,
+                    background: 'linear-gradient(135deg, #00F5FF, #00FF88)',
                     color: '#0F0F23',
                     border: 'none',
                     borderRadius: '50px',
@@ -1484,14 +1425,6 @@ const MainApp: React.FC = () => {
                     width: '100%',
                     fontWeight: '600',
                     transition: 'all 0.3s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 255, 136, 0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   Submit Movement Data
@@ -1501,20 +1434,20 @@ const MainApp: React.FC = () => {
                   <div style={{ 
                     background: 'rgba(255, 255, 255, 0.05)', 
                     padding: '24px', 
-                    borderRadius: MODERN_STYLES.borderRadiusSmall,
+                    borderRadius: '12px',
                     marginBottom: '20px',
                     textAlign: 'center'
                   }}>
                     <div style={{ 
                       fontSize: '3rem', 
                       fontWeight: '700', 
-                      color: MODERN_STYLES.success,
+                      color: '#00FF88',
                       marginBottom: '8px'
                     }}>
                       {distanceMiles.toFixed(3)} mi
                     </div>
                     <div style={{ 
-                      color: MODERN_STYLES.textSecondary, 
+                      color: '#94A3B8', 
                       fontSize: '1.1rem'
                     }}>
                       {formatTime(elapsedTime)} | Pace: {calculatePace()} /mi
@@ -1524,20 +1457,20 @@ const MainApp: React.FC = () => {
                   <div style={{ 
                     background: 'rgba(0, 245, 255, 0.05)', 
                     padding: '16px', 
-                    borderRadius: MODERN_STYLES.borderRadiusSmall,
+                    borderRadius: '12px',
                     marginBottom: '20px',
                     fontSize: '12px',
                     fontFamily: 'monospace',
-                    border: `1px solid rgba(0, 245, 255, 0.2)`
+                    border: '1px solid rgba(0, 245, 255, 0.2)'
                   }}>
-                    <div style={{ color: MODERN_STYLES.textSecondary, marginBottom: '8px' }}>
+                    <div style={{ color: '#94A3B8', marginBottom: '8px' }}>
                       📊 Data Points: {updateCount} | Validated: {movementCount}
                     </div>
-                    <div style={{ color: MODERN_STYLES.primary }}>
+                    <div style={{ color: '#00F5FF' }}>
                       🎯 {debugInfo}
                     </div>
                     {currentPosition && (
-                      <div style={{ marginTop: '8px', color: MODERN_STYLES.textMuted }}>
+                      <div style={{ marginTop: '8px', color: '#64748B' }}>
                         📍 {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
                       </div>
                     )}
@@ -1548,7 +1481,7 @@ const MainApp: React.FC = () => {
                     style={{
                       padding: '20px 40px',
                       fontSize: '18px',
-                      background: MODERN_STYLES.danger,
+                      background: '#FF4757',
                       color: 'white',
                       border: 'none',
                       borderRadius: '50px',
@@ -1556,14 +1489,6 @@ const MainApp: React.FC = () => {
                       width: '100%',
                       fontWeight: '600',
                       transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 71, 87, 0.3)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
                     Complete Validation
@@ -1576,51 +1501,32 @@ const MainApp: React.FC = () => {
               marginTop: '24px',
               padding: '16px',
               background: 'rgba(255, 215, 0, 0.05)',
-              borderRadius: MODERN_STYLES.borderRadiusSmall,
+              borderRadius: '12px',
               fontSize: '12px',
               textAlign: 'center',
               border: '1px solid rgba(255, 215, 0, 0.2)',
-              color: MODERN_STYLES.textSecondary
+              color: '#94A3B8'
             }}>
-              <strong style={{ color: MODERN_STYLES.warning }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
+              <strong style={{ color: '#FFD700' }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
               Not an investment. No monetary value guaranteed.
             </div>
           </>
         )}
       </div>
-
-      {/* Add CSS keyframes */}
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { left: -100%; }
-          100% { left: 100%; }
-        }
-      `}</style>
     </div>
   );
 };
 
 const App: React.FC = () => {
   return (
-    <>
-      {/* Add CSS animations to document head */}
-      <style>
-        {`
-          @keyframes shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
-          }
-        `}
-      </style>
-      <Router>
-        <Routes>
-          <Route path="/" element={<MainApp />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Routes>
-      </Router>
-    </>
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
   );
 };
 
