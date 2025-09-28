@@ -953,7 +953,7 @@ const MainApp: React.FC = () => {
   }, []);
 
   const disconnectWallet = useCallback(() => {
-    if (confirm('Are you sure you want to disconnect your wallet?')) {
+    if (window.confirm('Are you sure you want to disconnect your wallet?')) {
       setWallet('');
       localStorage.removeItem('fyts_wallet');
       setShowHistory(false);
