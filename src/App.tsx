@@ -26,7 +26,7 @@ const FYTS_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)"
 ];
 
-// Contract interaction hooks - ETHERS V5 VERSION
+// Contract interaction hooks
 const useContract = () => {
   const [contract, setContract] = useState<any>(null);
   const [provider, setProvider] = useState<any>(null);
@@ -52,7 +52,6 @@ const useContract = () => {
   return { contract, provider };
 };
 
-// Contract data hook
 const useContractData = () => {
   const { contract } = useContract();
   const [burnStats, setBurnStats] = useState({ burned: '0', remaining: '0', burnPercentage: '0' });
@@ -62,7 +61,6 @@ const useContractData = () => {
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.log('Contract data fetch timeout - using mock data');
       setBurnStats({ burned: '150000000000000000000000', remaining: '850000000000000000000000', burnPercentage: '1500' });
       setHalvingInfo({ currentPeriod: '0', currentRate: '1000000000000000000', nextHalvingIn: '12960000' });
       setNextBurnTime('86400');
@@ -146,16 +144,13 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
 
   const handleStake = async () => {
     if (!contract || !provider || !stakeInput) return;
-
     setLoading(true);
     try {
       const signer = provider.getSigner();
       const contractWithSigner = contract.connect(signer);
-      
       const amount = parseFloat(stakeInput) * Math.pow(10, 18);
       const tx = await contractWithSigner.stake(amount.toString());
       await tx.wait();
-      
       alert('Staking successful!');
       setStakeInput('');
       fetchUserData();
@@ -167,15 +162,12 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
 
   const handleUnstake = async () => {
     if (!contract || !provider) return;
-
     setLoading(true);
     try {
       const signer = provider.getSigner();
       const contractWithSigner = contract.connect(signer);
-      
       const tx = await contractWithSigner.unstake();
       await tx.wait();
-      
       alert('Unstaking successful!');
       fetchUserData();
     } catch (error: any) {
@@ -203,19 +195,8 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
       border: '1px solid rgba(255, 255, 255, 0.08)',
       borderRadius: '20px',
       padding: '32px',
-      marginTop: '20px',
-      position: 'relative',
-      overflow: 'hidden'
+      marginTop: '20px'
     }}>
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '1px',
-        background: 'linear-gradient(90deg, transparent, #00F5FF, transparent)'
-      }}></div>
-      
       <h3 style={{ 
         textAlign: 'center', 
         marginBottom: '24px', 
@@ -223,7 +204,7 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
         fontSize: '1.5rem',
         fontWeight: '600'
       }}>
-        🔒 FYTS Staking Interface
+        Staking Interface
       </h3>
 
       <div style={{ 
@@ -308,16 +289,11 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
                 borderRadius: '12px',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 fontWeight: '600',
-                fontSize: '14px',
-                transition: 'all 0.3s ease'
+                fontSize: '14px'
               }}
             >
               {loading ? 'Staking...' : 'Stake'}
             </button>
-          </div>
-
-          <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center' }}>
-            • 25-99 FYTS: 1x rewards • 100-299 FYTS: 1.5x rewards • 300+ FYTS: 2x rewards
           </div>
         </div>
       ) : (
@@ -354,7 +330,7 @@ const StakingInterface: React.FC<{ wallet: string }> = ({ wallet }) => {
   );
 };
 
-// Simple Top 10 Leaderboard Component
+// Leaderboard Component
 const SimpleLeaderboard: React.FC = () => {
   const [leaders, setLeaders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,11 +339,7 @@ const SimpleLeaderboard: React.FC = () => {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const q = query(
-          collection(db, 'runs'),
-          where('status', '==', 'approved')
-        );
-        
+        const q = query(collection(db, 'runs'), where('status', '==', 'approved'));
         const snapshot = await getDocs(q);
         const userStats: { [wallet: string]: any } = {};
 
@@ -376,12 +348,7 @@ const SimpleLeaderboard: React.FC = () => {
           const wallet = run.wallet;
           
           if (!userStats[wallet]) {
-            userStats[wallet] = { 
-              wallet, 
-              totalDistance: 0, 
-              runCount: 0, 
-              totalTokens: 0 
-            };
+            userStats[wallet] = { wallet, totalDistance: 0, runCount: 0, totalTokens: 0 };
           }
           
           userStats[wallet].totalDistance += run.distance || 0;
@@ -396,7 +363,6 @@ const SimpleLeaderboard: React.FC = () => {
         setLeaders(leaderboard);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching leaderboard:', err);
         setError('Failed to load leaderboard');
         setLoading(false);
       }
@@ -411,8 +377,6 @@ const SimpleLeaderboard: React.FC = () => {
         padding: '32px', 
         textAlign: 'center', 
         background: 'rgba(255, 255, 255, 0.03)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '20px', 
         marginTop: '20px',
         color: '#94A3B8'
@@ -428,7 +392,6 @@ const SimpleLeaderboard: React.FC = () => {
         padding: '32px', 
         textAlign: 'center', 
         background: 'rgba(255, 71, 87, 0.1)',
-        border: '1px solid #FF4757',
         borderRadius: '20px', 
         marginTop: '20px',
         color: '#FF4757'
@@ -440,18 +403,16 @@ const SimpleLeaderboard: React.FC = () => {
 
   const getRankEmoji = (index: number) => {
     switch (index) {
-      case 0: return '🥇';
-      case 1: return '🥈';
-      case 2: return '🥉';
-      default: return `#${index + 1}`;
+      case 0: return '1st';
+      case 1: return '2nd';
+      case 2: return '3rd';
+      default: return `${index + 1}th`;
     }
   };
 
   return (
     <div style={{ 
       background: 'rgba(255, 255, 255, 0.03)',
-      backdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
       borderRadius: '20px', 
       padding: '32px', 
       marginTop: '20px' 
@@ -465,19 +426,6 @@ const SimpleLeaderboard: React.FC = () => {
       }}>
         Community Top 10
       </h3>
-      
-      <div style={{ 
-        background: 'rgba(0, 245, 255, 0.05)', 
-        padding: '16px', 
-        borderRadius: '12px', 
-        marginBottom: '20px', 
-        fontSize: '12px',
-        border: '1px solid rgba(0, 245, 255, 0.2)',
-        color: '#94A3B8'
-      }}>
-        <strong style={{ color: '#00F5FF' }}>Health First:</strong> This celebrates consistent, moderate movement. 
-        Remember to take rest days and listen to your body. Sustainable activity is the goal.
-      </div>
 
       {leaders.length === 0 ? (
         <div style={{
@@ -493,8 +441,7 @@ const SimpleLeaderboard: React.FC = () => {
         <div style={{ 
           background: 'rgba(255, 255, 255, 0.02)', 
           borderRadius: '12px', 
-          overflow: 'hidden',
-          border: '1px solid rgba(255, 255, 255, 0.05)'
+          overflow: 'hidden'
         }}>
           {leaders.map((leader, index) => (
             <div 
@@ -504,12 +451,11 @@ const SimpleLeaderboard: React.FC = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '16px 20px', 
-                borderBottom: index < leaders.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
-                background: index < 3 ? 'rgba(0, 245, 255, 0.03)' : 'transparent'
+                borderBottom: index < leaders.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '16px', minWidth: '30px' }}>
+                <span style={{ fontSize: '16px', minWidth: '30px', color: '#00F5FF' }}>
                   {getRankEmoji(index)}
                 </span>
                 <span style={{ fontWeight: '600', color: '#E2E8F0' }}>
@@ -528,18 +474,6 @@ const SimpleLeaderboard: React.FC = () => {
           ))}
         </div>
       )}
-
-      <div style={{
-        marginTop: '20px',
-        padding: '12px',
-        background: 'rgba(255, 255, 255, 0.02)',
-        borderRadius: '12px',
-        fontSize: '12px',
-        color: '#64748B',
-        textAlign: 'center'
-      }}>
-        Showing top 10 validators by total approved distance • Updated in real-time
-      </div>
     </div>
   );
 };
@@ -590,82 +524,69 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         textAlign: 'center', 
         marginBottom: '40px',
         background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '24px',
-        padding: '48px 32px',
-        position: 'relative',
-        overflow: 'hidden'
+        padding: '48px 32px'
       }}>
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <h1 style={{ 
-            fontSize: '3.5rem', 
-            margin: '0 0 16px 0', 
-            fontWeight: '700',
-            background: 'linear-gradient(135deg, #00F5FF, #FF0080, #00FF88)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            FYTS Protocol
-          </h1>
-          <p style={{ 
-            fontSize: '1.2rem', 
-            margin: '0 0 24px 0', 
-            color: '#94A3B8' 
-          }}>
-            Transform Movement Into Digital Assets • {activeUsers} active validators
-          </p>
-          
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '40px',
-            marginTop: '32px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ 
-                fontSize: '2rem', 
-                fontWeight: '700', 
-                color: '#00F5FF',
-                marginBottom: '4px'
-              }}>{activeUsers}</div>
-              <div style={{ 
-                fontSize: '0.9rem', 
-                color: '#64748B',
-                textTransform: 'uppercase',
-                letterSpacing: '1px'
-              }}>Active Validators</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ 
-                fontSize: '2rem', 
-                fontWeight: '700', 
-                color: '#FF0080',
-                marginBottom: '4px'
-              }}>1,247</div>
-              <div style={{ 
-                fontSize: '0.9rem', 
-                color: '#64748B',
-                textTransform: 'uppercase',
-                letterSpacing: '1px'
-              }}>Miles Validated</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ 
-                fontSize: '2rem', 
-                fontWeight: '700', 
-                color: '#00FF88',
-                marginBottom: '4px'
-              }}>$43.2K</div>
-              <div style={{ 
-                fontSize: '0.9rem', 
-                color: '#64748B',
-                textTransform: 'uppercase',
-                letterSpacing: '1px'
-              }}>Market Cap</div>
-            </div>
+        <h1 style={{ 
+          fontSize: '3.5rem', 
+          margin: '0 0 16px 0', 
+          fontWeight: '700',
+          background: 'linear-gradient(135deg, #00F5FF, #FF0080, #00FF88)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
+        }}>
+          FYTS Protocol
+        </h1>
+        <p style={{ 
+          fontSize: '1.2rem', 
+          margin: '0 0 24px 0', 
+          color: '#94A3B8' 
+        }}>
+          Transform Movement Into Digital Assets • {activeUsers} active validators
+        </p>
+        
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '40px',
+          marginTop: '32px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              fontSize: '2rem', 
+              fontWeight: '700', 
+              color: '#00F5FF',
+              marginBottom: '4px'
+            }}>{activeUsers}</div>
+            <div style={{ 
+              fontSize: '0.9rem', 
+              color: '#64748B'
+            }}>Active Validators</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              fontSize: '2rem', 
+              fontWeight: '700', 
+              color: '#FF0080',
+              marginBottom: '4px'
+            }}>1,247</div>
+            <div style={{ 
+              fontSize: '0.9rem', 
+              color: '#64748B'
+            }}>Miles Validated</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ 
+              fontSize: '2rem', 
+              fontWeight: '700', 
+              color: '#00FF88',
+              marginBottom: '4px'
+            }}>$43.2K</div>
+            <div style={{ 
+              fontSize: '0.9rem', 
+              color: '#64748B'
+            }}>Market Cap</div>
           </div>
         </div>
       </div>
@@ -675,8 +596,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         textAlign: 'center', 
         marginBottom: '40px',
         background: 'rgba(255, 255, 255, 0.03)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '20px',
         padding: '32px'
       }}>
@@ -685,7 +604,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
           color: '#E2E8F0',
           fontSize: '1.5rem',
           fontWeight: '600'
-        }}>🌐 Join Our Community</h3>
+        }}>Join Our Community</h3>
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
@@ -709,11 +628,10 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               fontWeight: '500',
               fontSize: '14px',
               gap: '8px',
-              transition: 'all 0.3s ease',
               color: '#E2E8F0'
             }}
           >
-            📷 Instagram
+            Instagram
           </a>
           <a 
             href="https://x.com/getFyts"
@@ -731,11 +649,10 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               fontWeight: '500',
               fontSize: '14px',
               gap: '8px',
-              transition: 'all 0.3s ease',
               color: '#E2E8F0'
             }}
           >
-            🐦 Twitter/X
+            Twitter/X
           </a>
           <a 
             href="https://t.me/+4AdDVbCTfcxmZGEx"
@@ -753,11 +670,10 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               fontWeight: '500',
               fontSize: '14px',
               gap: '8px',
-              transition: 'all 0.3s ease',
               color: '#E2E8F0'
             }}
           >
-            💬 Telegram
+            Telegram
           </a>
         </div>
       </div>
@@ -771,15 +687,11 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         borderRadius: '20px',
         padding: '8px',
         flexWrap: 'wrap',
-        gap: '4px',
-        border: '1px solid rgba(255, 255, 255, 0.08)'
+        gap: '4px'
       }}>
         {[
-          { id: 'overview', label: '⚡ How It Works' },
-          { id: 'safety', label: '🛡️ Safety Rules' },
-          { id: 'tokenomics', label: '💰 Tokenomics' },
-          { id: 'halving', label: '📉 Halving Events' },
-          { id: 'staking', label: '🔒 Staking Info' }
+          { id: 'overview', label: 'How It Works' },
+          { id: 'tokenomics', label: 'Tokenomics' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -792,9 +704,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               color: activeTab === tab.id ? '#0F0F23' : '#94A3B8',
               cursor: 'pointer',
               fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.3s ease',
-              whiteSpace: 'nowrap'
+              fontWeight: '500'
             }}
           >
             {tab.label}
@@ -802,7 +712,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         ))}
       </div>
 
-      {/* Tab Content - How It Works */}
+      {/* Tab Content */}
       {activeTab === 'overview' && (
         <div style={{ marginBottom: '40px' }}>
           <div style={{ 
@@ -812,33 +722,28 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
           }}>
             {[
               {
-                icon: '🔗',
+                icon: 'Connect',
                 title: '1. Connect Protocol',
-                desc: 'Link your Polygon wallet to join the decentralized movement validation network. No private keys required.',
+                desc: 'Link your Polygon wallet to join the decentralized movement validation network.',
                 gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
               },
               {
-                icon: '📡',
+                icon: 'Validate',
                 title: '2. Validate Movement', 
-                desc: 'Advanced GPS algorithms verify authentic physical activity. Anti-spoofing technology ensures network integrity.',
+                desc: 'Advanced GPS algorithms verify authentic physical activity with anti-spoofing technology.',
                 gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
               },
               {
-                icon: '💎',
+                icon: 'Earn',
                 title: '3. Earn Tokens',
-                desc: 'Receive FYTS tokens for validated activity. Stake tokens for enhanced rewards up to 2x multiplier.',
+                desc: 'Receive FYTS tokens for validated activity. Stake tokens for enhanced rewards.',
                 gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
               }
             ].map((card, index) => (
               <div key={index} style={{ 
                 background: 'rgba(255, 255, 255, 0.03)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '20px',
-                padding: '32px',
-                position: 'relative',
-                overflow: 'hidden',
-                transition: 'all 0.3s ease'
+                padding: '32px'
               }}>
                 <div style={{
                   width: '64px',
@@ -848,8 +753,10 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '28px',
-                  marginBottom: '24px'
+                  fontSize: '12px',
+                  marginBottom: '24px',
+                  fontWeight: '600',
+                  color: 'white'
                 }}>{card.icon}</div>
                 <h3 style={{ 
                   margin: '0 0 16px 0', 
@@ -861,8 +768,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
                 </h3>
                 <p style={{ 
                   margin: '0', 
-                  color: '#94A3B8',
-                  lineHeight: '1.6'
+                  color: '#94A3B8'
                 }}>
                   {card.desc}
                 </p>
@@ -872,71 +778,100 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       )}
 
+      {activeTab === 'tokenomics' && (
+        <div style={{ marginBottom: '40px' }}>
+          <div style={{ 
+            background: 'rgba(255, 255, 255, 0.03)',
+            padding: '30px', 
+            borderRadius: '20px'
+          }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                Loading live contract data...
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '25px' }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  padding: '25px',
+                  borderRadius: '15px',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ margin: '0 0 15px 0', color: '#E2E8F0' }}>Burn Statistics</h4>
+                  <div style={{ fontSize: '14px', color: '#94A3B8' }}>
+                    <div style={{ marginBottom: '8px' }}><strong>Total Burned:</strong> {formatTokenAmount(burnStats.burned)} FYTS</div>
+                    <div style={{ marginBottom: '8px' }}><strong>Remaining:</strong> {formatTokenAmount(burnStats.remaining)} FYTS</div>
+                    <div style={{ marginBottom: '8px' }}><strong>Burned %:</strong> {(parseInt(burnStats.burnPercentage) / 100).toFixed(2)}%</div>
+                    <div><strong>Next Burn:</strong> {formatTime(nextBurnTime)}</div>
+                  </div>
+                </div>
+                
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  padding: '25px',
+                  borderRadius: '15px',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ margin: '0 0 15px 0', color: '#E2E8F0' }}>Current Halving Period</h4>
+                  <div style={{ fontSize: '14px', color: '#94A3B8' }}>
+                    <div style={{ marginBottom: '8px' }}><strong>Period:</strong> Months 1-6</div>
+                    <div style={{ marginBottom: '8px' }}><strong>Rate:</strong> 1.0 FYTS per mile</div>
+                    <div style={{ marginBottom: '8px' }}><strong>Next Halving:</strong> {formatTime(halvingInfo.nextHalvingIn)}</div>
+                    <div><strong>Total Halvings:</strong> {halvingInfo.currentPeriod}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Connect Wallet CTA */}
       <div style={{ 
         textAlign: 'center',
         background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '24px',
-        padding: '48px 32px',
-        position: 'relative',
-        overflow: 'hidden'
+        padding: '48px 32px'
       }}>
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <div style={{ fontSize: '4rem', margin: '0 0 24px 0' }}>🚀</div>
-          <h2 style={{ 
-            margin: '0 0 16px 0', 
-            fontSize: '2.2rem', 
-            fontWeight: '700',
-            color: '#E2E8F0'
-          }}>
-            Ready to Start Earning?
-          </h2>
-          <p style={{ 
-            margin: '0 0 32px 0', 
-            fontSize: '1.1rem', 
-            color: '#94A3B8',
-            maxWidth: '500px', 
-            marginLeft: 'auto', 
-            marginRight: 'auto' 
-          }}>
-            Join {activeUsers}+ validators earning FYTS tokens through verified movement
-          </p>
-          <button
-            onClick={onConnectWallet}
-            style={{
-              position: 'relative',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '20px 40px',
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              color: '#0F0F23',
-              background: 'linear-gradient(135deg, #00F5FF, #00FF88)',
-              border: 'none',
-              borderRadius: '50px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            🔗 Connect Wallet & Start Earning
-          </button>
-          <div style={{ 
-            marginTop: '24px', 
-            fontSize: '14px', 
-            color: '#64748B'
-          }}>
-            💚 Your health and safety come first • Sustainable movement rewards
-          </div>
-        </div>
+        <h2 style={{ 
+          margin: '0 0 16px 0', 
+          fontSize: '2.2rem', 
+          fontWeight: '700',
+          color: '#E2E8F0'
+        }}>
+          Ready to Start Earning?
+        </h2>
+        <p style={{ 
+          margin: '0 0 32px 0', 
+          fontSize: '1.1rem', 
+          color: '#94A3B8',
+          maxWidth: '500px', 
+          marginLeft: 'auto', 
+          marginRight: 'auto' 
+        }}>
+          Join {activeUsers}+ validators earning FYTS tokens through verified movement
+        </p>
+        <button
+          onClick={onConnectWallet}
+          style={{
+            padding: '20px 40px',
+            fontSize: '1.1rem',
+            fontWeight: '600',
+            color: '#0F0F23',
+            background: 'linear-gradient(135deg, #00F5FF, #00FF88)',
+            border: 'none',
+            borderRadius: '50px',
+            cursor: 'pointer'
+          }}
+        >
+          Connect Wallet & Start Earning
+        </button>
       </div>
     </div>
   );
 };
 
-// Main App Component (GPS CODE COMPLETELY UNCHANGED)
+// Main App Component (GPS CODE UNCHANGED)
 const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [tracking, setTracking] = useState(false);
@@ -963,7 +898,6 @@ const MainApp: React.FC = () => {
   const MAX_ACCURACY = 65;
   const MAX_SPEED_MPH = 15;
 
-  // Auto-load saved wallet on app start
   useEffect(() => {
     const savedWallet = localStorage.getItem('fyts_wallet');
     if (savedWallet && savedWallet.startsWith('0x') && savedWallet.length === 42) {
@@ -985,9 +919,7 @@ const MainApp: React.FC = () => {
     const toRad = (d: number) => (d * Math.PI) / 180;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }, []);
@@ -1007,7 +939,6 @@ const MainApp: React.FC = () => {
 
   const connectWallet = useCallback(() => {
     const savedWallet = localStorage.getItem('fyts_wallet');
-    
     const address = prompt(
       `Enter your Polygon wallet address (0x...):\n\n${savedWallet ? `Previously used: ${savedWallet}` : ''}`,
       savedWallet || ''
@@ -1113,11 +1044,7 @@ const MainApp: React.FC = () => {
         setDebugInfo(`GPS Error: ${err.message}`);
         console.error('GPS error:', err);
       },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 5000,
-        maximumAge: 0
-      }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   }, [wallet, haversineMeters]);
 
@@ -1206,9 +1133,7 @@ const MainApp: React.FC = () => {
             border: '1px solid rgba(255, 255, 255, 0.08)',
             borderRadius: '12px',
             cursor: 'pointer',
-            zIndex: 1000,
-            backdropFilter: 'blur(20px)',
-            fontWeight: '500'
+            zIndex: 1000
           }}
         >
           Exit Admin
@@ -1222,8 +1147,7 @@ const MainApp: React.FC = () => {
     <div style={{ 
       background: 'linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%)',
       minHeight: '100vh',
-      color: '#E2E8F0',
-      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+      color: '#E2E8F0'
     }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
         {showDisclaimer && (
@@ -1241,8 +1165,7 @@ const MainApp: React.FC = () => {
           fontWeight: '700',
           background: 'linear-gradient(135deg, #00F5FF, #FF0080)',
           WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
+          WebkitTextFillColor: 'transparent'
         }}>
           FYTS Movement Validation Protocol
         </h1>
@@ -1269,8 +1192,7 @@ const MainApp: React.FC = () => {
             border: '1px solid rgba(255, 255, 255, 0.08)',
             borderRadius: '12px',
             opacity: 0.5,
-            cursor: 'pointer',
-            backdropFilter: 'blur(20px)'
+            cursor: 'pointer'
           }}
         >
           Admin
@@ -1297,18 +1219,14 @@ const MainApp: React.FC = () => {
           </Link>
         </div>
 
-        {/* Show Landing Page Content When No Wallet Connected */}
         {!wallet ? (
           <LandingContent onConnectWallet={connectWallet} />
         ) : (
           <>
-            {/* Connected Wallet - Show App Interface */}
             <div style={{ 
               marginBottom: '24px', 
               padding: '24px', 
               background: 'rgba(255, 255, 255, 0.03)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: '20px'
             }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1333,11 +1251,10 @@ const MainApp: React.FC = () => {
                     fontSize: '14px',
                     background: showHistory ? '#00F5FF' : 'rgba(255, 255, 255, 0.05)',
                     color: showHistory ? '#0F0F23' : '#E2E8F0',
-                    border: showHistory ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                    border: 'none',
                     borderRadius: '12px',
                     cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.3s ease'
+                    fontWeight: '500'
                   }}
                 >
                   {showHistory ? 'Hide' : 'My'} History
@@ -1353,11 +1270,10 @@ const MainApp: React.FC = () => {
                     fontSize: '14px',
                     background: showLeaderboard ? '#FFD700' : 'rgba(255, 255, 255, 0.05)',
                     color: showLeaderboard ? '#0F0F23' : '#E2E8F0',
-                    border: showLeaderboard ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                    border: 'none',
                     borderRadius: '12px',
                     cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.3s ease'
+                    fontWeight: '500'
                   }}
                 >
                   {showLeaderboard ? 'Hide' : 'Top'} 10
@@ -1376,11 +1292,10 @@ const MainApp: React.FC = () => {
                     fontSize: '14px',
                     background: showStaking ? '#FF0080' : 'rgba(255, 255, 255, 0.05)',
                     color: showStaking ? '#0F0F23' : '#E2E8F0',
-                    border: showStaking ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                    border: 'none',
                     borderRadius: '12px',
                     cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.3s ease'
+                    fontWeight: '500'
                   }}
                 >
                   {showStaking ? 'Hide' : 'Stake'} FYTS
@@ -1393,11 +1308,9 @@ const MainApp: React.FC = () => {
             {showLeaderboard && <SimpleLeaderboard />}
             {showStaking && <StakingInterface wallet={wallet} />}
 
-            {/* Tracking Interface */}
             <div style={{ 
               padding: '32px', 
               background: tracking ? 'rgba(0, 255, 136, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-              backdropFilter: 'blur(20px)',
               borderRadius: '20px',
               border: tracking ? '2px solid #00FF88' : '1px solid rgba(255, 255, 255, 0.08)'
             }}>
@@ -1408,7 +1321,7 @@ const MainApp: React.FC = () => {
                 fontWeight: '600',
                 color: '#E2E8F0'
               }}>
-                {tracking ? '📡 Validating Movement' : '🔐 Ready to Validate'}
+                {tracking ? 'Validating Movement' : 'Ready to Validate'}
               </h2>
 
               {!tracking ? (
@@ -1423,8 +1336,7 @@ const MainApp: React.FC = () => {
                     borderRadius: '50px',
                     cursor: 'pointer',
                     width: '100%',
-                    fontWeight: '600',
-                    transition: 'all 0.3s ease'
+                    fontWeight: '600'
                   }}
                 >
                   Submit Movement Data
@@ -1459,19 +1371,17 @@ const MainApp: React.FC = () => {
                     padding: '16px', 
                     borderRadius: '12px',
                     marginBottom: '20px',
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    border: '1px solid rgba(0, 245, 255, 0.2)'
+                    fontSize: '12px'
                   }}>
                     <div style={{ color: '#94A3B8', marginBottom: '8px' }}>
-                      📊 Data Points: {updateCount} | Validated: {movementCount}
+                      Data Points: {updateCount} | Validated: {movementCount}
                     </div>
                     <div style={{ color: '#00F5FF' }}>
-                      🎯 {debugInfo}
+                      {debugInfo}
                     </div>
                     {currentPosition && (
                       <div style={{ marginTop: '8px', color: '#64748B' }}>
-                        📍 {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
+                        {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
                       </div>
                     )}
                   </div>
@@ -1487,8 +1397,7 @@ const MainApp: React.FC = () => {
                       borderRadius: '50px',
                       cursor: 'pointer',
                       width: '100%',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
+                      fontWeight: '600'
                     }}
                   >
                     Complete Validation
@@ -1504,7 +1413,6 @@ const MainApp: React.FC = () => {
               borderRadius: '12px',
               fontSize: '12px',
               textAlign: 'center',
-              border: '1px solid rgba(255, 215, 0, 0.2)',
               color: '#94A3B8'
             }}>
               <strong style={{ color: '#FFD700' }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
