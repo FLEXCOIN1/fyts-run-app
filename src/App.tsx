@@ -582,7 +582,7 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
               fontWeight: '700', 
               color: '#00FF88',
               marginBottom: '4px'
-            }}>$43.2K</div>
+            }}>TBD</div>
             <div style={{ 
               fontSize: '0.9rem', 
               color: '#64748B'
@@ -952,6 +952,17 @@ const MainApp: React.FC = () => {
     }
   }, []);
 
+  const disconnectWallet = useCallback(() => {
+    if (confirm('Are you sure you want to disconnect your wallet?')) {
+      setWallet('');
+      localStorage.removeItem('fyts_wallet');
+      setShowHistory(false);
+      setShowLeaderboard(false);
+      setShowStaking(false);
+      setShowInstructions(true);
+    }
+  }, []);
+
   const startTracking = useCallback(() => {
     if (!wallet) {
       alert('Please connect your wallet first to participate in the validation network');
@@ -1229,11 +1240,28 @@ const MainApp: React.FC = () => {
               background: 'rgba(255, 255, 255, 0.03)',
               borderRadius: '20px'
             }}>
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <span style={{ color: '#00FF88', fontSize: '16px' }}>✓ </span>
-                <span style={{ color: '#E2E8F0', fontWeight: '500' }}>
-                  Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
-                </span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ textAlign: 'center', flex: 1 }}>
+                  <span style={{ color: '#00FF88', fontSize: '16px' }}>✓ </span>
+                  <span style={{ color: '#E2E8F0', fontWeight: '500' }}>
+                    Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
+                  </span>
+                </div>
+                <button
+                  onClick={disconnectWallet}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    background: 'rgba(255, 71, 87, 0.1)',
+                    color: '#FF4757',
+                    border: '1px solid rgba(255, 71, 87, 0.2)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  Disconnect
+                </button>
               </div>
               
               <div style={{ 
