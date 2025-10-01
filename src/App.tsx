@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
 import Disclaimer from './components/Disclaimer';
@@ -871,9 +871,80 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
   );
 };
 
+// Username management functions
+const createOrGetUsername = async (walletAddress: string): Promise<string | null> => {
+  try {
+    // Check if user already has a username
+    const userDocRef = doc(db, 'users', walletAddress);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (userDoc.exists()) {
+      return userDoc.data().username;
+    }
+    
+    // Prompt for new username
+    const username = window.prompt('Choose a username (3-20 characters, alphanumeric only):');
+    
+    if (!username) {
+      return null;
+    }
+    
+    // Validate username
+    if (username.length < 3 || username.length > 20) {
+      alert('Username must be between 3-20 characters');
+      return null;
+    }
+    
+    // Check if alphanumeric only
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      alert('Username can only contain letters, numbers, and underscores');
+      return null;
+    }
+    
+    // Check if username already taken
+    const usersQuery = query(collection(db, 'users'), where('username', '==', username));
+    const existingUsers = await getDocs(usersQuery);
+    
+    if (!existingUsers.empty) {
+      alert('Username already taken. Please choose another.');
+      return null;
+    }
+    
+    // Save to Firebase
+    await setDoc(userDocRef, {
+      wallet: walletAddress,
+      username: username,
+      createdAt: new Date()
+    });
+    
+    return username;
+  } catch (error) {
+    console.error('Error creating username:', error);
+    return null;
+  }
+};
+
+const getUsername = async (walletAddress: string): Promise<string> => {
+  try {
+    const userDocRef = doc(db, 'users', walletAddress);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (userDoc.exists()) {
+      return userDoc.data().username;
+    }
+    
+    // Return shortened wallet if no username
+    return `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`;
+  } catch (error) {
+    console.error('Error fetching username:', error);
+    return `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`;
+  }
+};
+
 // Main App Component (GPS CODE UNCHANGED)
 const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
   const [tracking, setTracking] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentPosition, setCurrentPosition] = useState<GeolocationCoordinates | null>(null);
@@ -902,6 +973,8 @@ const MainApp: React.FC = () => {
     const savedWallet = localStorage.getItem('fyts_wallet');
     if (savedWallet && savedWallet.startsWith('0x') && savedWallet.length === 42) {
       setWallet(savedWallet);
+      // Fetch username for saved wallet
+      getUsername(savedWallet).then(setUsername);
     }
   }, []);
 
@@ -937,9 +1010,9 @@ const MainApp: React.FC = () => {
     };
   }, [tracking]);
 
-  const connectWallet = useCallback(() => {
+  const connectWallet = useCallback(async () => {
     const savedWallet = localStorage.getItem('fyts_wallet');
-    const address = prompt(
+    const address = window.prompt(
       `Enter your Polygon wallet address (0x...):\n\n${savedWallet ? `Previously used: ${savedWallet}` : ''}`,
       savedWallet || ''
     );
@@ -947,6 +1020,12 @@ const MainApp: React.FC = () => {
     if (address && address.startsWith('0x') && address.length === 42) {
       setWallet(address);
       localStorage.setItem('fyts_wallet', address);
+      
+      // Get or create username
+      const fetchedUsername = await createOrGetUsername(address);
+      if (fetchedUsername) {
+        setUsername(fetchedUsername);
+      }
     } else if (address !== null) {
       alert('Please enter a valid Polygon wallet address');
     }
@@ -1079,6 +1158,7 @@ const MainApp: React.FC = () => {
     try {
       await addDoc(collection(db, 'runs'), {
         wallet: wallet,
+        username: username || `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`,
         distance: finalMiles,
         time: formatTime(elapsedTime),
         duration: elapsedTime,
@@ -1244,7 +1324,7 @@ const MainApp: React.FC = () => {
                 <div style={{ textAlign: 'center', flex: 1 }}>
                   <span style={{ color: '#00FF88', fontSize: '16px' }}>✓ </span>
                   <span style={{ color: '#E2E8F0', fontWeight: '500' }}>
-                    Network Validator: {wallet.substring(0, 6)}...{wallet.substring(38)}
+                    {username || `${wallet.substring(0, 6)}...${wallet.substring(38)}`}
                   </span>
                 </div>
                 <button
