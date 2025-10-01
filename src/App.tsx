@@ -1187,7 +1187,7 @@ const MainApp: React.FC = () => {
       console.error('Error submitting movement data:', error);
       alert('Error submitting movement data. Please try again.');
     }
-  }, [wallet, elapsedTime, updateCount, movementCount, formatTime]);
+  }, [wallet, elapsedTime, updateCount, movementCount, formatTime, username]);
 
   const calculatePace = useCallback(() => {
     if (distanceMiles > 0 && elapsedTime > 0) {
