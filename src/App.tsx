@@ -6,6 +6,7 @@ import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
 import Disclaimer from './components/Disclaimer';
 import Instructions from './components/Instructions';
+import PerformanceChallenges from './components/PerformanceChallenges';
 import TermsOfService from './legal/TermsOfService';
 import PrivacyPolicy from './legal/PrivacyPolicy';
 import './App.css';
@@ -874,7 +875,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
 // Username management functions
 const createOrGetUsername = async (walletAddress: string): Promise<string | null> => {
   try {
-    // Check if user already has a username
     const userDocRef = doc(db, 'users', walletAddress);
     const userDoc = await getDoc(userDocRef);
     
@@ -882,26 +882,22 @@ const createOrGetUsername = async (walletAddress: string): Promise<string | null
       return userDoc.data().username;
     }
     
-    // Prompt for new username
     const username = window.prompt('Choose a username (3-20 characters, alphanumeric only):');
     
     if (!username) {
       return null;
     }
     
-    // Validate username
     if (username.length < 3 || username.length > 20) {
       alert('Username must be between 3-20 characters');
       return null;
     }
     
-    // Check if alphanumeric only
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       alert('Username can only contain letters, numbers, and underscores');
       return null;
     }
     
-    // Check if username already taken
     const usersQuery = query(collection(db, 'users'), where('username', '==', username));
     const existingUsers = await getDocs(usersQuery);
     
@@ -910,7 +906,6 @@ const createOrGetUsername = async (walletAddress: string): Promise<string | null
       return null;
     }
     
-    // Save to Firebase
     await setDoc(userDocRef, {
       wallet: walletAddress,
       username: username,
@@ -933,7 +928,6 @@ const getUsername = async (walletAddress: string): Promise<string> => {
       return userDoc.data().username;
     }
     
-    // Return shortened wallet if no username
     return `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`;
   } catch (error) {
     console.error('Error fetching username:', error);
@@ -941,7 +935,7 @@ const getUsername = async (walletAddress: string): Promise<string> => {
   }
 };
 
-// Main App Component (GPS CODE UNCHANGED)
+// Main App Component
 const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [username, setUsername] = useState<string>('');
@@ -956,6 +950,7 @@ const MainApp: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
+  const [showChallenges, setShowChallenges] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
@@ -973,7 +968,6 @@ const MainApp: React.FC = () => {
     const savedWallet = localStorage.getItem('fyts_wallet');
     if (savedWallet && savedWallet.startsWith('0x') && savedWallet.length === 42) {
       setWallet(savedWallet);
-      // Fetch username for saved wallet
       getUsername(savedWallet).then(setUsername);
     }
   }, []);
@@ -1021,7 +1015,6 @@ const MainApp: React.FC = () => {
       setWallet(address);
       localStorage.setItem('fyts_wallet', address);
       
-      // Get or create username
       const fetchedUsername = await createOrGetUsername(address);
       if (fetchedUsername) {
         setUsername(fetchedUsername);
@@ -1038,6 +1031,7 @@ const MainApp: React.FC = () => {
       setShowHistory(false);
       setShowLeaderboard(false);
       setShowStaking(false);
+      setShowChallenges(false);
       setShowInstructions(true);
     }
   }, []);
@@ -1065,6 +1059,7 @@ const MainApp: React.FC = () => {
     startTime.current = new Date();
     setShowHistory(false);
     setShowLeaderboard(false);
+    setShowChallenges(false);
     setShowInstructions(false);
 
     if (!('geolocation' in navigator)) {
@@ -1182,6 +1177,7 @@ const MainApp: React.FC = () => {
       
       setShowHistory(true);
       setShowLeaderboard(false);
+      setShowChallenges(false);
       setShowInstructions(false);
     } catch (error) {
       console.error('Error submitting movement data:', error);
@@ -1352,7 +1348,11 @@ const MainApp: React.FC = () => {
                 <button 
                   onClick={() => {
                     setShowHistory(!showHistory);
-                    if (!showHistory) setShowLeaderboard(false);
+                    if (!showHistory) {
+                      setShowLeaderboard(false);
+                      setShowStaking(false);
+                      setShowChallenges(false);
+                    }
                   }}
                   style={{ 
                     padding: '12px 16px',
@@ -1371,7 +1371,11 @@ const MainApp: React.FC = () => {
                 <button 
                   onClick={() => {
                     setShowLeaderboard(!showLeaderboard);
-                    if (!showLeaderboard) setShowHistory(false);
+                    if (!showLeaderboard) {
+                      setShowHistory(false);
+                      setShowStaking(false);
+                      setShowChallenges(false);
+                    }
                   }}
                   style={{ 
                     padding: '12px 16px',
@@ -1393,6 +1397,7 @@ const MainApp: React.FC = () => {
                     if (!showStaking) {
                       setShowHistory(false);
                       setShowLeaderboard(false);
+                      setShowChallenges(false);
                     }
                   }}
                   style={{ 
@@ -1408,13 +1413,37 @@ const MainApp: React.FC = () => {
                 >
                   {showStaking ? 'Hide' : 'Stake'} FYTS
                 </button>
+
+                <button 
+                  onClick={() => {
+                    setShowChallenges(!showChallenges);
+                    if (!showChallenges) {
+                      setShowHistory(false);
+                      setShowLeaderboard(false);
+                      setShowStaking(false);
+                    }
+                  }}
+                  style={{ 
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    background: showChallenges ? '#9B59B6' : 'rgba(255, 255, 255, 0.05)',
+                    color: showChallenges ? '#0F0F23' : '#E2E8F0',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  {showChallenges ? 'Hide' : 'Challenges'}
+                </button>
               </div>
             </div>
 
-            {showInstructions && !tracking && !showHistory && !showLeaderboard && !showStaking && <Instructions />}
+            {showInstructions && !tracking && !showHistory && !showLeaderboard && !showStaking && !showChallenges && <Instructions />}
             {showHistory && <RunHistory wallet={wallet} />}
             {showLeaderboard && <SimpleLeaderboard />}
             {showStaking && <StakingInterface wallet={wallet} />}
+            {showChallenges && <PerformanceChallenges wallet={wallet} username={username} />}
 
             <div style={{ 
               padding: '32px', 
@@ -1528,7 +1557,7 @@ const MainApp: React.FC = () => {
             </div>
           </>
         )}
-      </div>
+</div>
     </div>
   );
 };
