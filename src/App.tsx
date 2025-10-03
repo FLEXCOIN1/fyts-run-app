@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
 import Disclaimer from './components/Disclaimer';
