@@ -8,6 +8,7 @@ import RunHistory from './components/RunHistory';
 import Disclaimer from './components/Disclaimer';
 import Instructions from './components/Instructions';
 import PerformanceChallenges from './components/PerformanceChallenges';
+import FriendSystem from './components/FriendSystem';
 import TermsOfService from './legal/TermsOfService';
 import PrivacyPolicy from './legal/PrivacyPolicy';
 import './App.css';
@@ -945,6 +946,7 @@ const MainApp: React.FC = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
   const [showChallenges, setShowChallenges] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
@@ -1026,6 +1028,7 @@ const MainApp: React.FC = () => {
       setShowLeaderboard(false);
       setShowStaking(false);
       setShowChallenges(false);
+      setShowFriends(false);
       setShowInstructions(true);
     }
   }, []);
@@ -1054,6 +1057,7 @@ const MainApp: React.FC = () => {
     setShowHistory(false);
     setShowLeaderboard(false);
     setShowChallenges(false);
+    setShowFriends(false);
     setShowInstructions(false);
 
     if (!('geolocation' in navigator)) {
@@ -1172,6 +1176,7 @@ const MainApp: React.FC = () => {
       setShowHistory(true);
       setShowLeaderboard(false);
       setShowChallenges(false);
+      setShowFriends(false);
       setShowInstructions(false);
     } catch (error) {
       console.error('Error submitting movement data:', error);
@@ -1314,7 +1319,66 @@ const MainApp: React.FC = () => {
                 <div style={{ textAlign: 'center', flex: 1 }}>
                   <span style={{ color: '#00FF88', fontSize: '16px' }}>✓ </span>
                   <span style={{ color: '#E2E8F0', fontWeight: '500' }}>
-                    {username || `${wallet.substring(0, 6)}...${wallet.substring(38)}`}
+                    {currentPosition && (
+                      <div style={{ marginTop: '8px', color: '#64748B' }}>
+                        {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={stopTracking}
+                    style={{
+                      padding: '20px 40px',
+                      fontSize: '18px',
+                      background: '#FF4757',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50px',
+                      cursor: 'pointer',
+                      width: '100%',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Complete Validation
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              marginTop: '24px',
+              padding: '16px',
+              background: 'rgba(255, 215, 0, 0.05)',
+              borderRadius: '12px',
+              fontSize: '12px',
+              textAlign: 'center',
+              color: '#94A3B8'
+            }}>
+              <strong style={{ color: '#FFD700' }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
+              Not an investment. No monetary value guaranteed.
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;username || `${wallet.substring(0, 6)}...${wallet.substring(38)}`}
                   </span>
                 </div>
                 <button
@@ -1346,6 +1410,7 @@ const MainApp: React.FC = () => {
                       setShowLeaderboard(false);
                       setShowStaking(false);
                       setShowChallenges(false);
+                      setShowFriends(false);
                     }
                   }}
                   style={{ 
@@ -1369,6 +1434,7 @@ const MainApp: React.FC = () => {
                       setShowHistory(false);
                       setShowStaking(false);
                       setShowChallenges(false);
+                      setShowFriends(false);
                     }
                   }}
                   style={{ 
@@ -1392,6 +1458,7 @@ const MainApp: React.FC = () => {
                       setShowHistory(false);
                       setShowLeaderboard(false);
                       setShowChallenges(false);
+                      setShowFriends(false);
                     }
                   }}
                   style={{ 
@@ -1415,6 +1482,7 @@ const MainApp: React.FC = () => {
                       setShowHistory(false);
                       setShowLeaderboard(false);
                       setShowStaking(false);
+                      setShowFriends(false);
                     }
                   }}
                   style={{ 
@@ -1430,14 +1498,39 @@ const MainApp: React.FC = () => {
                 >
                   {showChallenges ? 'Hide' : 'Challenges'}
                 </button>
+
+                <button 
+                  onClick={() => {
+                    setShowFriends(!showFriends);
+                    if (!showFriends) {
+                      setShowHistory(false);
+                      setShowLeaderboard(false);
+                      setShowStaking(false);
+                      setShowChallenges(false);
+                    }
+                  }}
+                  style={{ 
+                    padding: '12px 16px',
+                    fontSize: '14px',
+                    background: showFriends ? '#3498DB' : 'rgba(255, 255, 255, 0.05)',
+                    color: showFriends ? '#0F0F23' : '#E2E8F0',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  {showFriends ? 'Hide' : 'Friends'}
+                </button>
               </div>
             </div>
 
-            {showInstructions && !tracking && !showHistory && !showLeaderboard && !showStaking && !showChallenges && <Instructions />}
+            {showInstructions && !tracking && !showHistory && !showLeaderboard && !showStaking && !showChallenges && !showFriends && <Instructions />}
             {showHistory && <RunHistory wallet={wallet} />}
             {showLeaderboard && <SimpleLeaderboard />}
             {showStaking && <StakingInterface wallet={wallet} />}
             {showChallenges && <PerformanceChallenges wallet={wallet} username={username} />}
+            {showFriends && <FriendSystem wallet={wallet} username={username} />}
 
             <div style={{ 
               padding: '32px', 
@@ -1510,64 +1603,4 @@ const MainApp: React.FC = () => {
                     <div style={{ color: '#00F5FF' }}>
                       {debugInfo}
                     </div>
-                    {currentPosition && (
-                      <div style={{ marginTop: '8px', color: '#64748B' }}>
-                        {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={stopTracking}
-                    style={{
-                      padding: '20px 40px',
-                      fontSize: '18px',
-                      background: '#FF4757',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '50px',
-                      cursor: 'pointer',
-                      width: '100%',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Complete Validation
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div style={{
-              marginTop: '24px',
-              padding: '16px',
-              background: 'rgba(255, 215, 0, 0.05)',
-              borderRadius: '12px',
-              fontSize: '12px',
-              textAlign: 'center',
-              color: '#94A3B8'
-            }}>
-              <strong style={{ color: '#FFD700' }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
-              Not an investment. No monetary value guaranteed.
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const App: React.FC = () => {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/terms" element={<TermsOfService />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/admin" element={
-<AdminDashboard />} />
-      </Routes>
-    </Router>
-  );
-};
-
-export default App;
+                    {
