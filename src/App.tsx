@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { db } from './firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, setDoc, getDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import AdminDashboard from './components/AdminDashboard';
 import RunHistory from './components/RunHistory';
 import Disclaimer from './components/Disclaimer';
@@ -520,7 +521,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
 
   return (
     <div style={{ lineHeight: '1.6' }}>
-      {/* Hero Section */}
       <div style={{ 
         textAlign: 'center', 
         marginBottom: '40px',
@@ -592,7 +592,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       </div>
 
-      {/* Social Media Section */}
       <div style={{ 
         textAlign: 'center', 
         marginBottom: '40px',
@@ -679,7 +678,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       </div>
 
-      {/* Tab Navigation */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'center', 
@@ -713,7 +711,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         ))}
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'overview' && (
         <div style={{ marginBottom: '40px' }}>
           <div style={{ 
@@ -827,7 +824,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
         </div>
       )}
 
-      {/* Connect Wallet CTA */}
       <div style={{ 
         textAlign: 'center',
         background: 'rgba(255, 255, 255, 0.05)',
@@ -872,7 +868,6 @@ const LandingContent: React.FC<{ onConnectWallet: () => void }> = ({ onConnectWa
   );
 };
 
-// Username management functions
 const createOrGetUsername = async (walletAddress: string): Promise<string | null> => {
   try {
     const userDocRef = doc(db, 'users', walletAddress);
@@ -935,7 +930,6 @@ const getUsername = async (walletAddress: string): Promise<string> => {
   }
 };
 
-// Main App Component
 const MainApp: React.FC = () => {
   const [wallet, setWallet] = useState<string>('');
   const [username, setUsername] = useState<string>('');
@@ -1557,7 +1551,7 @@ const MainApp: React.FC = () => {
             </div>
           </>
         )}
-</div>
+      </div>
     </div>
   );
 };
@@ -1569,7 +1563,8 @@ const App: React.FC = () => {
         <Route path="/" element={<MainApp />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={
+<AdminDashboard />} />
       </Routes>
     </Router>
   );
