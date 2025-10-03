@@ -1,31 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
-interface PerformanceChallenge {
+interface Challenge {
   id: string;
-  creatorWallet: string;
-  creatorUsername: string;
-  distance: number;
-  time: string;
-  duration: number;
-  wagerAmount: number;
-  totalPot: number;
-  runId: string;
-  participants: Array<{
-    wallet: string;
-    username: string;
-    runId: string;
-    distance: number;
-    duration: number;
-    verified: boolean;
-    timestamp: any;
-  }>;
-  createdAt: any;
-  expiresAt: any;
-  status: 'open' | 'closed' | 'completed';
-  winnerId?: string;
-  winnerUsername?: string;
+  title: string;
+  description: string;
+  target: number;
+  unit: string;
+  reward: number;
+  icon: string;
+  color: string;
 }
 
 interface PerformanceChallengesProps {
@@ -33,84 +18,182 @@ interface PerformanceChallengesProps {
   username: string;
 }
 
-export const PerformanceChallenges: React.FC<PerformanceChallengesProps> = ({ wallet, username }) => {
-  const [challenges, setChallenges] = useState<PerformanceChallenge[]>([]);
+const PerformanceChallenges: React.FC<PerformanceChallengesProps> = ({ wallet, username }) => {
+  const [challenges] = useState<Challenge[]>([
+    {
+      id: 'sprint_5k',
+      title: '5K Sprint',
+      description: 'Complete a 5K run (3.1 miles) in a single session',
+      target: 3.1,
+      unit: 'miles',
+      reward: 10,
+      icon: '⚡',
+      color: '#FF0080'
+    },
+    {
+      id: 'marathon_week',
+      title: 'Weekly Marathon',
+      description: 'Run 26.2 miles total in one week',
+      target: 26.2,
+      unit: 'miles',
+      reward: 50,
+      icon: '🏃',
+      color: '#00F5FF'
+    },
+    {
+      id: 'consistency_streak',
+      title: '7-Day Streak',
+      description: 'Complete at least 1 mile for 7 consecutive days',
+      target: 7,
+      unit: 'days',
+      reward: 25,
+      icon: '🔥',
+      color: '#FFD700'
+    },
+    {
+      id: 'speed_demon',
+      title: 'Speed Demon',
+      description: 'Complete a mile under 8 minutes',
+      target: 8,
+      unit: 'min/mile',
+      reward: 15,
+      icon: '💨',
+      color: '#00FF88'
+    },
+    {
+      id: 'endurance_master',
+      title: 'Endurance Master',
+      description: 'Run 50 miles total (lifetime)',
+      target: 50,
+      unit: 'miles',
+      reward: 100,
+      icon: '🎯',
+      color: '#9B59B6'
+    },
+    {
+      id: 'century_club',
+      title: 'Century Club',
+      description: 'Reach 100 total miles validated',
+      target: 100,
+      unit: 'miles',
+      reward: 250,
+      icon: '👑',
+      color: '#E74C3C'
+    }
+  ]);
+
+  const [userStats, setUserStats] = useState({
+    totalDistance: 0,
+    totalRuns: 0,
+    longestRun: 0,
+    fastestPace: 0,
+    currentStreak: 0
+  });
+
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'browse' | 'my_challenges'>('browse');
 
   useEffect(() => {
-    fetchChallenges();
-  }, []);
+    const fetchUserStats = async () => {
+      try {
+        const q = query(
+          collection(db, 'runs'),
+          where('wallet', '==', wallet),
+          where('status', '==', 'approved')
+        );
+        const snapshot = await getDocs(q);
+        
+        let totalDistance = 0;
+        let longestRun = 0;
+        let fastestPace = Infinity;
+        const runs: any[] = [];
 
-  const fetchChallenges = async () => {
-    try {
-      const q = query(collection(db, 'performance_challenges'), where('status', '==', 'open'));
-      const snapshot = await getDocs(q);
-      const fetchedChallenges: PerformanceChallenge[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        fetchedChallenges.push({
-          id: doc.id,
-          ...data
-        } as PerformanceChallenge);
-      });
+        snapshot.forEach((doc) => {
+          const run = doc.data();
+          totalDistance += run.distance || 0;
+          if (run.distance > longestRun) longestRun = run.distance;
+          
+          const pace = run.duration / 60 / run.distance;
+          if (pace < fastestPace && pace > 0) fastestPace = pace;
+          
+          runs.push({
+            distance: run.distance,
+            date: new Date(run.date)
+          });
+        });
 
-      setChallenges(fetchedChallenges);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching challenges:', error);
-      setLoading(false);
+        // Calculate streak
+        runs.sort((a, b) => b.date.getTime() - a.date.getTime());
+        let streak = 0;
+        let lastDate: Date | null = null;
+
+        for (const run of runs) {
+          if (!lastDate) {
+            streak = 1;
+            lastDate = run.date;
+          } else {
+            const daysDiff = Math.floor(
+              (lastDate.getTime() - run.date.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (daysDiff === 1) {
+              streak++;
+              lastDate = run.date;
+            } else if (daysDiff > 1) {
+              break;
+            }
+          }
+        }
+
+        setUserStats({
+          totalDistance,
+          totalRuns: runs.length,
+          longestRun,
+          fastestPace: fastestPace === Infinity ? 0 : fastestPace,
+          currentStreak: streak
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching user stats:', error);
+        setLoading(false);
+      }
+    };
+
+    if (wallet) {
+      fetchUserStats();
+    }
+  }, [wallet]);
+
+  const calculateProgress = (challenge: Challenge): number => {
+    switch (challenge.id) {
+      case 'sprint_5k':
+        return Math.min((userStats.longestRun / challenge.target) * 100, 100);
+      case 'marathon_week':
+        return Math.min((userStats.totalDistance / challenge.target) * 100, 100);
+      case 'consistency_streak':
+        return Math.min((userStats.currentStreak / challenge.target) * 100, 100);
+      case 'speed_demon':
+        if (userStats.fastestPace === 0) return 0;
+        return Math.min(100, Math.max(0, (1 - (userStats.fastestPace - challenge.target) / challenge.target) * 100));
+      case 'endurance_master':
+        return Math.min((userStats.totalDistance / challenge.target) * 100, 100);
+      case 'century_club':
+        return Math.min((userStats.totalDistance / challenge.target) * 100, 100);
+      default:
+        return 0;
     }
   };
 
-  const acceptChallenge = async (challenge: PerformanceChallenge) => {
-    if (!wallet || !username) {
-      alert('Please connect your wallet first');
-      return;
-    }
-
-    const userConfirmed = window.confirm(
-      `Accept challenge from ${challenge.creatorUsername}?\n\n` +
-      `Target: ${challenge.distance.toFixed(2)} miles in ${challenge.time}\n` +
-      `Wager: ${challenge.wagerAmount} FYTS\n\n` +
-      `You'll need to complete a run within 24 hours from now.`
-    );
-
-    if (!userConfirmed) return;
-
-    alert('Challenge accepted! Complete your run and it will be automatically submitted for verification.');
-    fetchChallenges();
-  };
-
-  const isExpired = (expiresAt: any) => {
-    if (!expiresAt) return false;
-    const expiry = expiresAt.toDate ? expiresAt.toDate() : new Date(expiresAt);
-    return new Date() > expiry;
-  };
-
-  const getTimeRemaining = (expiresAt: any) => {
-    if (!expiresAt) return 'Unknown';
-    const expiry = expiresAt.toDate ? expiresAt.toDate() : new Date(expiresAt);
-    const now = new Date();
-    const diff = expiry.getTime() - now.getTime();
-    
-    if (diff <= 0) return 'Expired';
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m`;
+  const isCompleted = (challenge: Challenge): boolean => {
+    return calculateProgress(challenge) >= 100;
   };
 
   if (loading) {
     return (
       <div style={{
-        padding: '32px',
-        textAlign: 'center',
         background: 'rgba(255, 255, 255, 0.03)',
         borderRadius: '20px',
+        padding: '32px',
         marginTop: '20px',
+        textAlign: 'center',
         color: '#94A3B8'
       }}>
         Loading challenges...
@@ -135,138 +218,156 @@ export const PerformanceChallenges: React.FC<PerformanceChallengesProps> = ({ wa
         Performance Challenges
       </h3>
 
-      {/* Tab Navigation */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        gap: '12px',
-        marginBottom: '24px'
+        background: 'rgba(255, 255, 255, 0.05)',
+        padding: '20px',
+        borderRadius: '12px',
+        marginBottom: '24px',
+        textAlign: 'center'
       }}>
-        <button
-          onClick={() => setActiveTab('browse')}
-          style={{
-            padding: '12px 24px',
-            background: activeTab === 'browse' ? 'linear-gradient(135deg, #00F5FF, #FF0080)' : 'rgba(255, 255, 255, 0.05)',
-            color: activeTab === 'browse' ? '#0F0F23' : '#E2E8F0',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          Browse Challenges
-        </button>
-        <button
-          onClick={() => setActiveTab('my_challenges')}
-          style={{
-            padding: '12px 24px',
-            background: activeTab === 'my_challenges' ? 'linear-gradient(135deg, #00F5FF, #FF0080)' : 'rgba(255, 255, 255, 0.05)',
-            color: activeTab === 'my_challenges' ? '#0F0F23' : '#E2E8F0',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontWeight: '500'
-          }}
-        >
-          My Challenges
-        </button>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+          gap: '16px'
+        }}>
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#00F5FF' }}>
+              {userStats.totalDistance.toFixed(1)}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>Total Miles</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#FF0080' }}>
+              {userStats.totalRuns}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>Total Runs</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#FFD700' }}>
+              {userStats.longestRun.toFixed(1)}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>Longest Run</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#00FF88' }}>
+              {userStats.currentStreak}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>Day Streak</div>
+          </div>
+        </div>
       </div>
 
-      {/* Browse Tab */}
-      {activeTab === 'browse' && (
-        <div>
-          {challenges.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px',
-              background: 'rgba(255, 255, 255, 0.02)',
-              borderRadius: '12px',
-              color: '#64748B'
-            }}>
-              No open challenges available. Complete a run and create one!
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: '16px' }}>
-              {challenges.map((challenge) => (
-                <div
-                  key={challenge.id}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    padding: '24px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.9rem', color: '#00F5FF', marginBottom: '4px' }}>
-                        Challenge by {challenge.creatorUsername}
-                      </div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: '600', color: '#E2E8F0' }}>
-                        {challenge.distance.toFixed(2)} miles in {challenge.time}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#FFD700' }}>
-                        {challenge.wagerAmount} FYTS
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
-                        Pot: {challenge.totalPot} FYTS
-                      </div>
-                    </div>
-                  </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '16px'
+      }}>
+        {challenges.map((challenge) => {
+          const progress = calculateProgress(challenge);
+          const completed = isCompleted(challenge);
 
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingTop: '16px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.05)'
-                  }}>
-                    <div style={{ fontSize: '0.85rem', color: '#94A3B8' }}>
-                      Time remaining: <span style={{ color: '#00FF88', fontWeight: '500' }}>
-                        {getTimeRemaining(challenge.expiresAt)}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => acceptChallenge(challenge)}
-                      disabled={challenge.creatorWallet === wallet || isExpired(challenge.expiresAt)}
-                      style={{
-                        padding: '10px 20px',
-                        background: challenge.creatorWallet === wallet || isExpired(challenge.expiresAt) 
-                          ? 'rgba(255, 255, 255, 0.1)' 
-                          : 'linear-gradient(135deg, #00F5FF, #00FF88)',
-                        color: challenge.creatorWallet === wallet || isExpired(challenge.expiresAt) ? '#64748B' : '#0F0F23',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: challenge.creatorWallet === wallet || isExpired(challenge.expiresAt) ? 'not-allowed' : 'pointer',
-                        fontWeight: '600',
-                        fontSize: '0.9rem'
-                      }}
-                    >
-                      {challenge.creatorWallet === wallet ? 'Your Challenge' : 
-                       isExpired(challenge.expiresAt) ? 'Expired' : 'Accept Challenge'}
-                    </button>
-                  </div>
+          return (
+            <div
+              key={challenge.id}
+              style={{
+                background: completed
+                  ? `linear-gradient(135deg, ${challenge.color}15, ${challenge.color}25)`
+                  : 'rgba(255, 255, 255, 0.02)',
+                border: `1px solid ${completed ? challenge.color + '40' : 'rgba(255, 255, 255, 0.05)'}`,
+                borderRadius: '12px',
+                padding: '20px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              {completed && (
+                <div style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  background: challenge.color,
+                  color: '#0F0F23',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}>
+                  COMPLETED
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )}
 
-      {/* My Challenges Tab */}
-      {activeTab === 'my_challenges' && (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px',
-          background: 'rgba(255, 255, 255, 0.02)',
-          borderRadius: '12px',
-          color: '#64748B'
-        }}>
-          Your created and accepted challenges will appear here
-        </div>
-      )}
+              <div style={{
+                fontSize: '2rem',
+                marginBottom: '12px'
+              }}>
+                {challenge.icon}
+              </div>
+
+              <h4 style={{
+                margin: '0 0 8px 0',
+                color: '#E2E8F0',
+                fontSize: '1.1rem',
+                fontWeight: '600'
+              }}>
+                {challenge.title}
+              </h4>
+
+              <p style={{
+                margin: '0 0 16px 0',
+                color: '#94A3B8',
+                fontSize: '0.9rem',
+                lineHeight: '1.4'
+              }}>
+                {challenge.description}
+              </p>
+
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '8px',
+                height: '8px',
+                overflow: 'hidden',
+                marginBottom: '12px'
+              }}>
+                <div style={{
+                  background: `linear-gradient(90deg, ${challenge.color}, ${challenge.color}dd)`,
+                  height: '100%',
+                  width: `${progress}%`,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.85rem'
+              }}>
+                <span style={{ color: '#94A3B8' }}>
+                  {progress.toFixed(0)}% Complete
+                </span>
+                <span style={{
+                  color: challenge.color,
+                  fontWeight: '600'
+                }}>
+                  +{challenge.reward} FYTS
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{
+        marginTop: '24px',
+        padding: '16px',
+        background: 'rgba(0, 245, 255, 0.05)',
+        borderRadius: '12px',
+        textAlign: 'center',
+        fontSize: '0.9rem',
+        color: '#94A3B8'
+      }}>
+        Complete challenges to earn bonus FYTS tokens on top of your regular activity rewards!
+      </div>
     </div>
   );
 };
