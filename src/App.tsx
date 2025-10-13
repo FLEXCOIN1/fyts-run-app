@@ -1319,67 +1319,13 @@ const MainApp: React.FC = () => {
                 <div style={{ textAlign: 'center', flex: 1 }}>
                   <span style={{ color: '#00FF88', fontSize: '16px' }}>✓ </span>
                   <span style={{ color: '#E2E8F0', fontWeight: '500' }}>
-                    {currentPosition && (
-                      <div style={{ marginTop: '8px', color: '#64748B' }}>
-                        {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={stopTracking}
-                    style={{
-                      padding: '20px 40px',
-                      fontSize: '18px',
-                      background: '#FF4757',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '50px',
-                      cursor: 'pointer',
-                      width: '100%',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Complete Validation
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div style={{
-              marginTop: '24px',
-              padding: '16px',
-              background: 'rgba(255, 215, 0, 0.05)',
-              borderRadius: '12px',
-              fontSize: '12px',
-              textAlign: 'center',
-              color: '#94A3B8'
-            }}>
-              <strong style={{ color: '#FFD700' }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
-              Not an investment. No monetary value guaranteed.
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const App: React.FC = () => {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/terms" element={<TermsOfService />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Routes>
-    </Router>
-  );
-};
-
-export default App;username || `${wallet.substring(0, 6)}...${wallet.substring(38)}`}
+                    {username || `${wallet.substring(0, 6)}...${wallet.substring(wallet.length - 4)}`}
                   </span>
+                  {currentPosition && (
+                    <div style={{ marginTop: '8px', color: '#64748B' }}>
+                      {currentPosition.latitude.toFixed(6)}, {currentPosition.longitude.toFixed(6)}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={disconnectWallet}
@@ -1603,4 +1549,58 @@ export default App;username || `${wallet.substring(0, 6)}...${wallet.substring(3
                     <div style={{ color: '#00F5FF' }}>
                       {debugInfo}
                     </div>
-                    {
+                  </div>
+
+                  <button
+                    onClick={stopTracking}
+                    style={{
+                      padding: '20px 40px',
+                      fontSize: '18px',
+                      background: '#FF4757',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50px',
+                      cursor: 'pointer',
+                      width: '100%',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Complete Validation
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              marginTop: '24px',
+              padding: '16px',
+              background: 'rgba(255, 215, 0, 0.05)',
+              borderRadius: '12px',
+              fontSize: '12px',
+              textAlign: 'center',
+              color: '#94A3B8'
+            }}>
+              <strong style={{ color: '#FFD700' }}>Network Notice:</strong> FYTS tokens are utility tokens for network validation only. 
+              Not an investment. No monetary value guaranteed.
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;
